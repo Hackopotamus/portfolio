@@ -1,6 +1,6 @@
 ---
 title: "Hack The Box: Popcorn"
-date: 2026-XX-XX
+date: 2026-08-05
 ref: WU-004
 summary: "Rooting the retired HTB 'Popcorn' machine — enumerating a torrent hosting web application, bypassing file upload filters to deploy a PHP webshell, gaining initial access as www-data, and escalating to root via two local privilege escalation paths: the PAM MOTD vulnerability and the Dirty Cow kernel exploit."
 tags: [hack-the-box, web, php, file-upload, filter-bypass, apache, linux, privilege-escalation, cve-2010-0832, cve-2016-5195, motd, dirtycow]
