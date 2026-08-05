@@ -185,10 +185,12 @@ Using Firefox, we load the URL `http://popcorn.htb/test` and see that it contain
 **Green — Very Possible Attack Vectors**
 * `disable_functions = no value` — no PHP functions are blocked, meaning `system()`, `exec()`, `shell_exec()` and friends are all fully available. if we get a file uploaded and executing, the webshell will work without restriction.
 * `file_uploads = On` — the server accepts file uploads. This is promising information that we might be able to exploit.
+
 **Orange — Useful Intelligence**
 * `allow_url_fopen = On` — PHP can fetch remote URLs via file functions. Not directly exploitable here given `allow_url_include` is off, but useful context if we find a file read vulnerability later.
 * `display_errors = On` — errors print to the browser rather than being logged silently. Helps us during exploitation if something fails — the server will tell us why rather than returning a blank page.
 * `expose_php = On` — PHP version is being advertised in response headers. Useful for fingerprinting and identifying version-specific vulnerabilities.
+
 **Red — Attack Path Closed**
 * `allow_url_include = Off` — Remote File Inclusion is blocked. PHP will not fetch and execute remote code via include functions, so LFI-to-RFI escalation and direct RFI attacks are off the table.
 
