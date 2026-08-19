@@ -684,7 +684,7 @@ C:\WINDOWS\system32>type "C:\Documents and Settings\john\Desktop\user.txt"
 
 ## Beyond root
 
-** Fixing the missing whoami binary**
+**Fixing the missing whoami binary**
 
 Windows XP does not ship with `whoami.exe` in the default installation, which is
 why the command failed earlier. We work around this by hosting the binary from our
