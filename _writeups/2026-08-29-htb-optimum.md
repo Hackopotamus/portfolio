@@ -3,7 +3,7 @@ title: "Hack The Box: Optimum"
 date: 2026-08-29
 ref: WU-006
 summary: "Rooting the retired HTB 'Optimum' machine — exploiting a remote code execution vulnerability in HttpFileServer 2.3 to gain an initial foothold as a low-privileged user, then escalating to SYSTEM via a Windows kernel privilege escalation exploit."
-tags: [hack-the-box, hfs, http-file-server, windows, rce, cve-2014-6287, privilege-escalation, Metasploit, WES-NG, sherlock, MS16-032, CVE-2019-1458]
+tags: [hack-the-box, hfs, http-file-server, windows, rce, cve-2014-6287, privilege-escalation, Metasploit, wes-ng, sherlock, ms16-032, cve-2019-1458]
 ---
 
 <h1 align="center">Optimum — Hack The Box Write-up</h1>
