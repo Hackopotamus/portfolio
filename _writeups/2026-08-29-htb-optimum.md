@@ -3,7 +3,7 @@ title: "Hack The Box: Optimum"
 date: 2026-08-29
 ref: WU-006
 summary: "Rooting the retired HTB 'Optimum' machine — exploiting a remote code execution vulnerability in HttpFileServer 2.3 to gain an initial foothold as a low-privileged user, then escalating to SYSTEM via a Windows kernel privilege escalation exploit."
-tags: [hack-the-box, hfs, http-file-server, windows, rce, cve-2014-6287, privilege-escalation, ms16-032, sherlock, watson]
+tags: [hack-the-box, hfs, http-file-server, windows, rce, cve-2014-6287, privilege-escalation, Metasploit, WES-NG, sherlock, MS16-032, CVE-2019-1458]
 ---
 
 <h1 align="center">Optimum — Hack The Box Write-up</h1>
@@ -140,6 +140,7 @@ except Exception as ex:
 Inspecting the script gives us a few clues about how it works, what arguments it expects, and how we might chain its functionality together to gain a shell on the system. To reinforce our understanding, we can first read through the code and try to understand what it's doing (see the full explanation below for those who want a more detailed breakdown). From there, we can manually test the vulnerability before firing the final reverse shell payload.
 
 > **How `49125.py` works?**
+> 
 > The script targets CVE-2014-6287, a pre-authenticated remote code execution vulnerability in Rejetto HTTP File Server 2.3.x. Three arguments are passed at runtime — RHOST, RPORT, and the command to execute — keeping it lean and reusable across different targets without touching the source. `urllib3.PoolManager` handles the HTTP transport, and `urllib.parse.quote` URL-encodes the command before it's embedded in the request so special characters don't break the payload in transit.
 > 
 > The actual exploitation happens in the URL construction. HFS ships with a built-in macro language used for internal templating, and the search parameter gets passed directly into that engine without sanitisation. The `{.+exec|<command>.}` syntax is a legitimate HFS macro that executes a system command — abusing it here is less a traditional exploit and more just using a built-in feature against the application. The problem is HFS does attempt to filter macro syntax from user input, checking for `{` at the start of the string. The `%00` null byte prepended to the payload is what defeats that — the string comparison terminates at the null byte before it ever reaches the `{`, so the filter considers the input clean and passes it straight to the template engine.
@@ -174,6 +175,7 @@ http://10.129.54.27:80/?search=%00{. exec|c:\windows\SysNative\WindowsPowershell
 Before we copy and paste the string into Firefox's address bar, we should URL-encode the payload. This ensures that the special characters required by the exploit are correctly represented during transmission and aren't interpreted or altered by the browser or web server. Encoding the payload also helps preserve its integrity and is generally good practice when working with specially constructed URLs.
 
 > **Why URL encode payloads?**
+> 
 > HTTP has a defined set of reserved characters — spaces, `&`, `/`, `+`, `=` and others — that carry structural meaning in a request. Embedding them raw inside a parameter value breaks the request: a space becomes a delimiter, an `&` splits the parameter string, and a `/` is interpreted as a path separator.
 > 
 > URL encoding ([RFC 3986](https://datatracker.ietf.org/doc/html/rfc3986)) replaces those characters with a percent sign followed by their two-digit hex value — a space becomes `%20`, a backslash `%5C` — so the payload travels intact without being misread as request structure by the server or any intermediary.
@@ -196,6 +198,7 @@ Now that everything is working as expected and we've covered the relevant theory
 With our payload delivery working, we can now turn the Rejetto HttpFileServer 2.3.x RCE exploit into actual access to the system. Before doing so, we'll grab the Nishang framework and its collection of PowerShell scripts. We can then use one of these scripts in combination with the `49125.py` exploit to deliver our reverse shell and establish a foothold on the target.
 
 > **Warning — Legacy tools**
+> 
 > Optimum is a nine-year-old box, and that age is the point. Vintage machines are a window into techniques that were cutting-edge at the time — and Nishang is a good example of why that still matters. It was once a default Kali tool, a go-to offensive PowerShell framework, and has since been deprecated and stripped from the standard repository. Stock Nishang scripts are effectively dead against modern targets — AMSI and aggressive vendor signature coverage catch the default payloads instantly — but against a box from this era they run clean, which is exactly why this chain works.
 > 
 > The approach here is straightforward: a Nishang PowerShell TCP reverse shell, pulled into memory and chained directly with CVE-2014-6287. No disk writes, no AV evasion required — the target simply predates the defences that would block it.
@@ -435,6 +438,7 @@ We'll need to reset the shell and figure out a way around this behaviour if we w
 This gives us another very important lesson that we've seen in previous walkthroughs: **not all shells are built the same!**
 
 > **Note — Shell Limitations and Restrictions**
+> 
 > Working with shells long enough makes one thing clear — they are not interchangeable. The Nishang TCP reverse shell is a non-PTY shell: it pipes stdin and stdout directly over a TCP socket without a proper terminal layer underneath. That matters because interactive or blocking child processes expect a PTY to attach to, and when they don't find one the shell hangs, misbehaves, or dies. Crashing a shell that may have limited re-trigger opportunities is a painful lesson, so the better habit is to establish a second connection early and treat the original as a transport layer only — file drops, session spawning, nothing that risks killing it. If anything goes wrong in the working session, there is always a fallback without having to re-exploit. Worth noting this is a CTF and lab consideration specifically; maintaining multiple outbound connections is not advisable when attempting to stay under the radar on a real engagement.
 > 
 > One additional thing worth flagging for tmux users: tmux enforces a scrollback buffer limit, defaulting to 2,000 lines in older versions. Any output beyond that is gone — lengthy script output, enumeration results, anything that runs long simply gets cut off and cannot be recovered from the terminal. Three ways around it: write output directly to file, increase the history limit with `set-option -g history-limit <n>` in `.tmux.conf`, or spawn the session outside of tmux entirely. The last option tends to be the most reliable since it sidesteps the buffer entirely rather than just raising the ceiling. Either way, knowing about this before losing important output is considerably less frustrating than finding out during a timed assessment.
