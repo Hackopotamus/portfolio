@@ -1253,14 +1253,15 @@ Once the panel opens, we can see a node named **"REST"**. Hovering over the link
 After clicking the link, we can confirm that the **"REST"** API is listed as node `1`. This gives us the node ID we need and allows us to formulate the request required for the exploit.
 ![BeyondRoot NodeOne]({{ '/assets/img/htb-bastard/Bastard_BeyondRoot_NodeOne.png' | relative_url }})
 
-We can download a Python script [here](https://raw.githubusercontent.com/oways/SA-CORE-2018-004/master/drupalgeddon3.py) that creates the request for us. We'll save the script as `dg3.py` for shorthand and ease of use.
+We can download a Python version of the exploit [here](https://raw.githubusercontent.com/oways/SA-CORE-2018-004/master/drupalgeddon3.py) that creates the request for us. We'll save the script as `dg3.py` for shorthand ease of use when we use it ahead.
 
 All we need to do now is provide the key arguments required for the script to work. It expects:
 
-- **The Drupal CMS endpoint URL.**
+- **The Drupal CMS endpoint URL** in our case `http://10.129.61.127/` as this is where it's located on Bastard.
 - **The session name** and **session ID**, with an `=` between the two.
 - **The node ID** we discovered earlier, which in this case is `1`.
 - **The command** we want to execute on the system.
+
 ```Shell
 ┌──(kali㉿kali)-[~/…/Hack The Box/Machines/Bastard/Exploit]
 └─$ python3 dg3.py http://10.129.61.127/ "SESS56c5897b0eb2402b5d017a288d71cb18=Ozs3EAztYTgX25TwAZTELcrB9bldJG26ZZq3PpGPo2U" 1 "whoami"
