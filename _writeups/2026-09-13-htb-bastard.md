@@ -9,7 +9,7 @@ tags: [hack-the-box, drupal, cms, rce, php-deserialisation, drupalgeddon, cve-20
 <h1 align="center">Bastard — Hack The Box Write-up</h1>
 
 <p align="center">
-  <img src="{{ '/assets/img/htb-bastard/Bastard_Logo.png' | relative_url }}" width="300"/>
+  <img src="{{ '/assets/img/htb-bastard/Bastard_logo.png' | relative_url }}" width="300"/>
 </p>
 
 **Description:** Bastard is not overly challenging, however it requires some knowledge of PHP in order to modify and use the proof of concept required for initial entry. This machine demonstrates the potential severity of vulnerabilities in content management systems.
@@ -799,6 +799,7 @@ With our selection made, we load the `exploit/windows/local/ms15_051_client_copy
 2. **Payload:** Next, we set the payload to `windows/x64/shell/reverse_tcp`. We discovered this through some trial and error, as initially running the module produced an error explaining that certain payload types aren't compatible with this exploit. We can set the appropriate payload now so the module has everything it needs when we run it.
 3. **Target:** We then use `show targets` and can see that the exploit module provides both 32-bit and 64-bit target options. As we established earlier that the machine is running a 64-bit architecture, we select the latter.
 4. **Session:** Finally, we set the session to `1`, which is our current working session and the one we'll use to run the exploit against the machine.
+
 ```Shell
 msf post(multi/recon/local_exploit_suggester) > use exploit/windows/local/ms15_051_client_copy_image
 [*] No payload configured, defaulting to windows/meterpreter/reverse_tcp
