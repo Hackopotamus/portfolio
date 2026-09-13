@@ -199,7 +199,7 @@ Drupal 7.54, 2017-02-01
 - Additional automated test coverage.
 ```
 
-Testing a few of the links gives us `403` HTTP response codes, so we decide to run Feroxbuster to brute force the directories on the box. We soon learn that a vanilla scan isn't going to be much use.
+Testing a few of the links gives us 403 HTTP response codes, so we decide to run Feroxbuster to brute force the directories on the box. We soon learn that a vanilla scan isn't going to be much use.
 
 The first iteration of several gives us a huge volume of results, with many of the redirects also leading to forbidden content. We eventually settle on the flags below to narrow things down to results that are more useful to us. The main ones we include are `-x`, which allows us to search for text and PHP files, and `-n`, which disables recursion; otherwise, we're left with a massive amount of results to work through.
 ```
@@ -324,35 +324,36 @@ Copied to: /home/kali/Documents/Hack The Box/Machines/Bastard/Exploit/41564.php
 └─$ mv 41564.php drupal.php  
 ```
 
-We can now attempt to understand what the exploit does. This is a fairly complicated exploit, and I had to use an LLM (Claude) to help break it down for me. PHP deserialisation is not an easy attack to understand, but as with many things, if we can grasp the basics, we'll be in a far better position when it comes to modifying the exploit and understanding the process it uses to achieve its goal.
+We can now attempt to understand what the code does. This is a fairly complicated exploit, and I had to use an LLM (Claude) to help break it down for me. PHP deserialisation is not an easy attack to understand, but as with many things, if we can grasp the basics, we'll be in a far better position when it comes to modifying the exploit and understanding the process it uses to achieve its goal.
 
 Using an LLM here isn't about having it do the work for us. It's about using it as another resource to help explain something we don't fully understand yet. We still need to validate what we're being told, understand the underlying concepts, and ultimately be able to explain what the exploit is doing ourselves.
 
 > **What the Exploit Does (Claude)**
 > 
-> This exploit targets Drupal 7's **Services** module, which exposes site functionality (like the REST server) over an API. The bug is a **SQL injection** in how the module builds queries for its endpoint cache — but instead of using it to dump data, the script uses that injection to _rewrite_ a cached PHP object that Drupal later unserializes and trusts, turning the SQLi into full RCE. It works in three stages:
+> This exploit targets Drupal 7's **Services** module, which exposes site functionality (like the REST server) over an API. The bug is a **SQL injection** in how the module builds queries for its endpoint cache — but instead of using it to dump data, the script uses that injection to _rewrite_ a cached PHP object that Drupal later unserialises and trusts, turning the SQLi into full RCE. It works in three stages:
 >
-> 1. **Read the cache** — Using the SQLi, the script pulls the current serialized cache entry for the target REST endpoint. This cache includes the currently logged-in admin's session token and user object, which get saved locally.
-> 2. **Poison the cache** — It crafts a malicious serialized PHP object and, via the same injection, overwrites that cache entry. The payload is built so that when Drupal deserializes it on the next request, it triggers a file-write instead of just returning data.
-> 3. **Trigger the write and restore** — A follow-up request causes Drupal to deserialize the poisoned cache, writing the specified webshell out to disk. The script then restores the original cache entry so the endpoint keeps working normally and doesn't look tampered with.
+> 1. **Read the cache** — Using the SQLi, the script pulls the current serialised cache entry for the target REST endpoint. This cache includes the currently logged-in admin's session token and user object, which get saved locally.
+> 2. **Poison the cache** — It crafts a malicious serialised PHP object and, via the same injection, overwrites that cache entry. The payload is built so that when Drupal deserialises it on the next request, it triggers a file-write instead of just returning data.
+> 3. **Trigger the write and restore** — A follow-up request causes Drupal to deserialise the poisoned cache, writing the specified webshell out to disk. The script then restores the original cache entry so the endpoint keeps working normally and doesn't look tampered with.
 >
 > The end result is a PHP webshell on the server, plus an admin session cookie captured as a side effect of stage 1.
 
 After taking some time to understand what we're working with, looking at the PHP code starts to make a little more sense. Looking through the script gives us some useful hints that our selection is valid and that we'll need to edit a few things in order to get this working.
 
-In the image below, we can see several things of interest in the highlighted area. The main thing that sticks out is the `$url` variable, which we'll need to change to point towards our target. It also confirms that the exploit works with `drupal-7.54`, meaning we've chosen something that's very likely to work.
+In the image below, we can see several things of interest in the highlighted area. The main thing that sticks out is the `$url` variable, which we'll need to change to point towards our target. It also lists that the URL path with `drupal-7.54`, meaning we've chosen something that's very likely to work as it may have been tested on this version.
 
 We now need to formulate a little list of things to do before the exploit is usable:
 
-1. **Change the `$url` variable** to our box's IP of `http://10.129.57.233`, otherwise the exploit won't reach the Bastard machine.
-2. **Understand the endpoint variables.** We see two variables named `&endpoint_path` and `$endpoint` that we're going to need to understand before moving forward with testing. We'll look into these as our next task.
-3. **Modify the webshell.** We see that `$file` is a file that gets written to the machine. It writes a webshell using a randomized filename (for example, `dixuSOspsOUU.php`). We'll change the filename to `shell.php` and edit the payload to a simpler variation, allowing us to trigger commands through a basic GET request (`?cmd=`) rather than having to send raw PHP in a POST body each time.
+1. **Change the `$url` variable:** to our box's IP of `http://10.129.57.233`, otherwise the exploit won't reach the Bastard machine.
+2. **Understand the endpoint variables:**: We see two variables named `&endpoint_path` and `$endpoint` that we're going to need to understand before moving forward with testing. We'll look into these as our next task.
+3. **Modify the webshell:** We see that `$file` is a file that gets written to the machine. It writes a webshell using a randomized filename (for example, `dixuSOspsOUU.php`). We'll change the filename to `shell.php` and edit the payload to a simpler variation, allowing us to trigger commands through a basic GET request (`?cmd=`) rather than having to send raw PHP in a POST body each time.
 ![RCE DrupalPHP]({{ '/assets/img/htb-bastard/Bastard_RCE_DrupalPHP.png' | relative_url }})
 
 In our previous Feroxbuster scan, we never found anything called `/rest_endpoint`, which means we're back to looking for evidence of its existence. We need to confirm that the endpoint is actually present on the target; otherwise, our attack won't work, as it is a required component of the exploitation process.
 
 
 > **Flaky Connection**
+> 
 >One serious thing I'd like to note here is the machine's connection. Even though I was likely the only person working on this machine at the time (as its very old and retired), I found the connection to be extremely unstable.
 >
 >I tried several different tools and wordlists, with some estimating **upwards of eight hours** to complete. Increasing the number of threads to try and mitigate this created its own problems; the scans would run for a while before eventually starting to drop requests.
@@ -439,7 +440,7 @@ Task Completed
 
 Once we discover the `/rest` endpoint, we need to check exactly what it is. Using `curl`, we can probe the endpoint and do two things.
 
-First, we can validate that this is the REST API we require for the exploit to work. Secondly, although the URL path has been changed to `/rest`, the endpoint itself is still named `rest_endpoint`. This is important because the exploit is looking for `rest_endpoint`, and the response confirms that we've found the correct API despite its path being different from what we initially expected.
+First, we can validate that this is the REST API we require for the exploit to work. Secondly, although the URL path has been changed to `/rest`, the endpoint itself is still named `rest_endpoint`. This is important because the exploit URL path is looking for `rest_endpoint` and needs to be edited, where as the endpoint name remains the same and should not be modified.
 ``` Shell
 ┌──(kali㉿kali)-[~/…/Hack The Box/Machines/Bastard/Exploit]
 └─$ curl http://10.129.57.233/rest
@@ -449,7 +450,7 @@ Services Endpoint "rest_endpoint" has been setup successfully.
 
 Now we can finish modifying the `drupal.php` script from earlier. We update the `$endpoint_path` variable to `/rest`, which is the path the creator has changed, while keeping the `&endpoint` name as it is.
 
-With our target now set in the `$url` variable, and the filename and data updated in `$file`, we can save the exploit and attempt to run it to gain a foothold on the machine.
+With our target now set in the `$url` variable, and the filename and data updated in `$file` function parameters, we can save the exploit and attempt to run it to gain a foothold on the machine.
 ```PHP
 $url = 'http://10.129.57.233';
 $endpoint_path = '/rest';
@@ -518,7 +519,7 @@ Cache contains 7 entries
 File written: http://10.129.57.233/shell.php
 ```
 
-Checking the session file first with `cat`, we can see that it contains the session ID of the administrator. This could be useful if we want to import the session cookie into our browser and access Drupal as the administrator using this session.
+Checking the session file first with `cat`, we can see that it contains the session information of the administrator. This could be useful if we want to import a cookie into our browser and access Drupal CMS control pannel as the admin user.
 ```JSON 
 {
     "session_name": "SESS12dc2ce4f0d984dc6b350359bf0b0322",
@@ -529,7 +530,7 @@ Checking the session file first with `cat`, we can see that it contains the sess
 
 We also have the user information, which contains the administrator's Drupal 7 password hash. We'll return to this later in the **Beyond Root** section to see if we can crack it.
 
-At this point, however, it's not required. We already have RCE through the webshell we've written, so spending more time trying to crack the password would be unnecessary. It makes more sense to use the access we've already gained and continue with the next stage.
+At this point, however, it's not required. We already have a written webshell, so spending more time trying to crack the password would be unnecessary. It makes more sense to validate we have code execution before attempting anything else.
 ```JSON
 {
     "uid": "1",
@@ -788,7 +789,8 @@ This gives us a useful starting point when filtering the results. Any vulnerabil
 
 Looking at a few of the candidates we're offered, we're able to narrow the options down to a handful of possible modules that may work given our environment. Researching each module helps us understand what it does and, more importantly, what conditions need to be present if we're going to attempt to use it.
 
-> ****MS15-051 / CVE-2015-1701****
+> **MS15-051 / CVE-2015-1701**
+> 
 > A local privilege escalation vulnerability caused by a flaw in the Windows kernel-mode graphics driver (`win32k.sys`). The vulnerability allows a standard user to manipulate memory structures in a way that can cause the kernel to execute attacker-controlled code with elevated privileges. By exploiting this behaviour, an attacker can obtain the **SYSTEM access token**, allowing them to gain full administrative control over the machine.
 > 
 > Further research shows that the CVE designation for **MS15-051** is **CVE-2015-1701**, giving us the answer to 'Guided Mode' task six's question.
@@ -919,6 +921,7 @@ jp.exe                                  100%[===================================
 
 
 > **Warning — A Note on Precompiled Binaries**
+> 
 >For convenience in this writeup, a precompiled `jp.exe` binary was used directly from a GitHub repo. In a real-world engagement, **this is not a safe practice**. Precompiled binaries — especially privilege escalation and exploitation tools pulled from random forks or unfamiliar repos — can be backdoored, bundled with malware, or silently modified without your knowledge. Running unverified binaries on a client's system (or even in your own lab) is a real risk.
 >
 >Best practice is to:
@@ -1034,7 +1037,7 @@ In this section, we'll rewind to the point of initial access and attempt a few d
 Thereafter, we'll look at two alternative exploits that we identified earlier when running `searchsploit`. We saw both **Drupalgeddon 2** and **Drupalgeddon 3**, which we can investigate to see whether either could have been used to gain RCE on the machine.
 
 
-> ****Machine Reset****
+> **Machine Reset**
 > In the notes ahead, you'll see that the machine's IP address has changed. This is due to a full reset of the machine to remove anything we may have placed on the box during our initial pass. We don't want to create false results or run into issues caused by leftover artifacts from our previous completion.
 > 
 > * **Old IP Address**: 10.129.57.233
@@ -1255,7 +1258,7 @@ We can download a Python script [here](https://raw.githubusercontent.com/oways/S
 All we need to do now is provide the key arguments required for the script to work. It expects:
 
 - **The Drupal CMS endpoint URL.**
-- **The session name and session ID**, with an `=` between the two.
+- **The session name** and **session ID**, with an `=` between the two.
 - **The node ID** we discovered earlier, which in this case is `1`.
 - **The command** we want to execute on the system.
 ```Shell
