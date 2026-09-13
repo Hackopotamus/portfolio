@@ -70,7 +70,7 @@ Nmap done: 1 IP address (1 host up) scanned in 68.76 seconds
 
 ---
 
-### Enumeration
+## Enumeration
 
 We start this box with our services and versions Nmap scan. Once complete, we can see one port running HTTP and two others running Windows RPC services. This gives us a pretty clear path moving forwards, so we'll start by looking at port 80.
 
@@ -98,7 +98,7 @@ PORT      STATE SERVICE VERSION
 ```
 
 ---
-### HTTP (Port 80) — Drupal 7
+## HTTP (Port 80) — Drupal 7
 
 At this point, HTTP seems like the most logical place to start. Although methodologies do exist for testing RPC ports, HTTP exposes a very large attack surface, and it would be prudent to check here first before moving on to the other ports. Ahead, we find a Drupal web application, and we can start investigating the possible attack vectors exposed by the application.
 
@@ -303,7 +303,7 @@ Shellcodes: No Results
 ```
 
 ---
-### Remote Code Execution (Drupal 7.x Module Services)
+## Remote Code Execution (Drupal 7.x Module Services)
 
 In the last section, we found a possible candidate for exploiting the Drupal service. We can now inspect the selected exploit and attempt to understand how it works. After that, we can make the necessary modifications based on our scenario before deploying the exploit and attempting to gain a foothold on the machine.
 
@@ -572,7 +572,7 @@ At this point, however, it's not required. We already have a written webshell, s
 In the next section, we can attempt to access the machine by leveraging our webshell. If we can confirm RCE, we can then chain this into gaining a more interactive session on the machine.
 
 ---
-### Initial Access
+## Initial Access
 
 With `shell.php` written to the machine, we can now turn our focus to confirming RCE. Once confirmed, we'll carry out some basic reconnaissance before attempting to gain a more interactive session on the machine.
 
@@ -634,7 +634,7 @@ Network Card(s):           1 NIC(s) Installed.
                                  [01]: 10.129.57.233
 ```
 
-#### Foothold for Automated Workflow
+## Foothold for Automated Workflow
 
 If we decide to take an automated approach, we can use Metasploit to assist us from this point onwards. Although this approach is generally considered less hands-on and allows the tools to do much of the heavy lifting for us, it's still useful from a learning perspective. We can work backwards through the automated workflow to understand what is happening and use that knowledge to inform our manual approach.
 
@@ -698,7 +698,7 @@ whoami
 nt authority\iusr
 ```
 
-#### Foothold for Manual Workflow
+## Foothold for Manual Workflow
 
 As we also want to create a manual exploitation workflow, we'll need to make some alterations to the process above, as we're going to actively avoid using the Metasploit Framework for exploitation in this workflow.
 
@@ -748,10 +748,10 @@ nt authority\iusr
 ```
 
 ---
-### Privilege Escalation
+## Privilege Escalation
 
 As we now have two different workflows available to us and an interactive shell on the machine as the `nt authority\iusr` user, we can circle back to the enumeration phase. From here, we can start looking at the machine in more detail and determine what possible routes we can explore to escalate our privileges.
-#### Automated Enumeration & Exploitation
+## Automated Enumeration & Exploitation
 
 One thing we've learned from using the Metasploit Framework on previous machines is that it offers a wealth of features, including the **Local Exploit Suggester**, which can search for possible vulnerabilities that we may be able to use to gain control over the system.
 
@@ -874,7 +874,7 @@ whoami
 nt authority\iusr
 ```
 
-#### Manual Enumeration & Exploitation
+## Manual Enumeration & Exploitation
 
 As we also have a manual workflow, we can attempt to enumerate possible vulnerabilities without using the Metasploit Framework. From here, we'll attempt to identify a privilege escalation path by hand and then exploit it.
 
@@ -1003,7 +1003,7 @@ nt authority\system
 ```
 
 ---
-### Obtaining the Flags
+## Obtaining the Flags
 
 With our elevated access, we can now focus on locating the flags and completing the box. For this, we'll again use the `find` command to locate both flags. This saves us from trawling through files and directories manually and allows us to quickly locate what we're looking for.
 
@@ -1030,7 +1030,7 @@ type "C:\Users\Administrator\Desktop\root.txt"
 The machine has been successfully completed, but some further reading shows that there are other ways to gain a foothold on this machine. In the **Beyond Root** section, we'll rewind back to our initial reconnaissance and attempt to explore some of the other routes we could have taken to gain our initial foothold.
 
 ---
-### Beyond Root
+## Beyond Root
 
 In this section, we'll rewind to the point of initial access and attempt a few different approaches. First, we'll explore the possibility of cracking the hash we discovered after the `drupal.php` exploit completed. The exploit created a `sessions.json` file containing the administrator's Drupal 7 password hash, which we can now investigate further.
 
@@ -1043,7 +1043,7 @@ Thereafter, we'll look at two alternative exploits that we identified earlier wh
 > * **Old IP Address**: 10.129.57.233
 > * **New IP Address**: 10.129.61.127
 
-#### Attempting to Crack the Hash
+## Attempting to Crack the Hash
 
 First off, let's see if we can crack the hash we found in the `sessions.json` file created after the `drupal.php` exploit ran. We'll first need to place the administrator's Drupal 7 hash into a file called `admin.hash`, after which we can use Hashcat with the RockYou wordlist to attempt to crack it.
 
@@ -1083,7 +1083,7 @@ Hardware.Mon.#01.: Util: 96%
 [s]tatus [p]ause [b]ypass [c]heckpoint [f]inish [q]uit => q
 ```
 
-#### Drupalgeddon 2
+## Drupalgeddon 2
 
 Drupalgeddon 2 offers us three possible variants that we can use: two manual approaches and one Metasploit module. To understand our options, we do some research and create the following summary:
 
@@ -1099,12 +1099,12 @@ Running the exploit against the machine shows that it doesn't appear to be vulne
 ```Shell
 ┌──(kali㉿kali)-[~/…/Hack The Box/Machines/Bastard/Exploit]
 └─$ python3 44448.py                    
-################################################################
+################################
 # Proof-Of-Concept for CVE-2018-7600
 # by Vitalii Rudnykh
 # Thanks by AlbinoDrought, RicterZ, FindYanot, CostelSalanders
 # https://github.com/a2u/CVE-2018-7600
-################################################################
+################################
 Provided only for educational or information purposes
 
 Enter target url (example: https://domain.ltd/): http://10.129.61.127/
@@ -1197,7 +1197,7 @@ This gives us an interesting contrast between the manual and automated approache
 
 It's therefore not as simple as saying that manual exploitation is always better than using an automated framework. In this case, the specific Metasploit module simply hit a limitation that the Ruby exploit didn't, showing why understanding the underlying vulnerability and having alternative approaches available can be valuable.
 
-#### Drupalgeddon 3
+## Drupalgeddon 3
 
 Finally, we'll attempt the Drupalgeddon 3 exploit to see how this fares. We notice that the exploit listings are marked as **Authenticated**, meaning we'll need access to the CMS control panel with the appropriate permissions for the exploit to work.
 
@@ -1271,7 +1271,7 @@ At this point, we've now fully explored the box and taken an in-depth look at th
 
 ---
 
-### Conclusion
+## Conclusion
 
 This machine has certainly lived up to its name and has given me a lot of lessons along the way. From falling down rabbit holes and being reminded that burnout is a real thing, to dealing with an extremely flaky connection that cost me over two hours just to find an API endpoint, this box has certainly tested my patience.
 
