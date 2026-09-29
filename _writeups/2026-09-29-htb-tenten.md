@@ -20,7 +20,11 @@ tags: [hack-the-box, wordpress, wpscan, job-manager, cve-2015-6668, file-disclos
 - **Operating System:** Ubuntu 16.04 LTS
 - **Architecture:** x86_64
 
-**Credentials:** None required for initial access.
+**Credentials:**
+```Text
+takis:superpassword
+wordpress:SuperPassword111
+```
 
 **Nmap**
 
@@ -795,19 +799,18 @@ uid=0(root) gid=0(root) groups=0(root)
 ```
 
 To escalate our privileges, we can use the Bash script with our `sudo` permissions and pass it a Bash session to execute in the context of `root`. This gives us a root shell and complete control of the machine.
-
-At this point, we've successfully compromised the box from our initial enumeration through to full root access, completing the machine.
 ```
 takis@tenten:~$ sudo fuckin bash
 root@tenten:~#
 ```
+At this point, we've successfully compromised the box from our initial enumeration through to full root access, completing the machine.
 
 ---
 ## Obtaining the Root Flag
 
 Now that we have root privileges, we can grab the final flag. We first use `cd` to navigate to the root user's home directory, where we can find `root.txt`.
 
-We can then use `cat` to read the contents of the flag, giving us the final piece needed to complete the machine. However, there are still a few things from our journey that we haven't fully answered, so rather than stopping here, we can use the **Beyond Root** section to investigate them further.
+We can then use `cat` to read the contents of the flag, giving us the final piece needed to complete the machine. 
 ```Shell
 root@tenten:/# cd /root
 
@@ -817,7 +820,7 @@ root.txt
 root@tenten:/root# cat root.txt
 [root flag redacted]
 ```
-
+However, there are still a few things from our journey that we haven't fully answered, so rather than stopping here, we can use the **Beyond Root** section to investigate them further.
 
 ---
 ## Beyond Root
