@@ -276,6 +276,7 @@ Once the scan completes, the results are huge, bringing back around 100 potentia
 2. **CVE-2015-6668:** The first vulnerability, labelled as CVE-2015-6668, appears to be an IDOR vulnerability relating to the disclosure of CV file names. This immediately catches our attention, particularly because we've just managed to upload `shell.php.jpg` through this exact plugin. If this vulnerability can disclose the location of uploaded CV files, it could give us a way to find the file we've just placed on the machine.
 3. **Guided Mode answers:** Both of the above findings give us the answers to 'Guided Mode' questions four and five, giving us a nice little two-for-one while also providing another hint that we're heading in the right direction.
 4. **Stored XSS:** We also find an administrator stored XSS vulnerability. However, this may be out of scope for us, as it appears to require some form of interaction from an administrator. Given that this is a CTF, that particular attack scenario seems less likely to be useful to us.
+
 ```Shell
 ┌──(kali㉿kali)-[~/Documents/Hack The Box/Machines/TenTen]
 └─$ wpscan --url http://tenten.htb --enumerate vp --api-token ********************
@@ -351,7 +352,6 @@ Interesting Finding(s):
 [+] Memory used: 283.516 MB
 [+] Elapsed time: 00:00:44
 ```
-
 
 This section has been quite long, but we've managed to locate a promising candidate for further investigation. In the next section, we can take a closer look at the vulnerability and its associated exploit, and explore how we might be able to use it to gain access to the machine.
 
@@ -835,6 +835,7 @@ Now that we have root privileges, we can inspect the web server directly to find
 3. **Investigate the upload directory:** With the search working, we begin exploring the directory structure manually. We discover a folder for `2026`, containing a subdirectory named `09`. This matches the year-and-month structure we were investigating earlier when modifying the CVE-2015-6668 exploit to brute-force possible upload paths.
 4. **Locate the renamed web shell:** After entering the directory and listing its contents with `ls`, we finally find our web shell under a different filename. This explains why searching for `shell.php.jpg` returned nothing: the file was uploaded, but its name was changed. This was likely intended to steer us away from an alternative routes, but it definitely explains why our earlier attempts came up empty.
 5. **Inspect the file:** Finally, we use `cat` to inspect the file's contents and confirm that the PHP code has been preserved despite the filename change. Now that we know where the file is stored and what it has been renamed to, we can investigate whether it's accessible and usable as a web shell.
+
 ```Shell
 root@tenten:/root# cd /var/www/
 
