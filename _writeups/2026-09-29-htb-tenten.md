@@ -2,7 +2,7 @@
 title: "Hack The Box: Tenten"
 date: 2026-09-29
 ref: WU-008
-summary: "Rooting the retired HTB 'Tenten' machine — exploiting a file disclosure vulnerability in the WordPress Job Manager plugin to extract an SSH private key hidden inside a job application image, cracking the key passphrase, and escalating to root via a misconfigured sudo permission on a steganography tool."
+summary: "Rooting the retired HTB Tenten machine — exploiting a file disclosure vulnerability in the WordPress Job Manager plugin to discover a job application image containing an SSH private key hidden using steganography, cracking the key's passphrase, and escalating to root through a misconfigured sudo permission on a custom Bash script."
 tags: [hack-the-box, wordpress, wpscan, job-manager, cve-2015-6668, file-disclosure, steganography, ssh, linux, privilege-escalation, sudo-abuse]
 ---
 
@@ -16,11 +16,11 @@ tags: [hack-the-box, wordpress, wpscan, job-manager, cve-2015-6668, file-disclos
 
 **Retired machine — `tenten.htb`**
 
-- **IP Address:** 10.10.10.10
+- **IP Address:** 10.129.64.49
 - **Operating System:** Ubuntu 16.04 LTS
 - **Architecture:** x86_64
 
-**Credentials:**
+**Discovered Credentials:**
 ```Text
 takis:superpassword
 wordpress:SuperPassword111
@@ -69,7 +69,7 @@ To start the machine, we'll begin with our usual Nmap **"Scripts and Services"**
 The scan reveals that the machine has only two ports open, giving us the answer to the first 'Guided Mode' tasks' question. Bearing this in mind, we can take this as a hint that we're on the right track and assume that no wider port scanning will be required on this machine. The output has been trimmed slightly to keep the relevant information visible.
 ```bash
 ┌──(kali㉿kali)-[~/Documents/Hack The Box/Machines/TenTen]
-└─$ nmap -sCV -oA Scans/Nmap-Service+Version 10.129.64.498
+└─$ nmap -sCV -oA Scans/Nmap-Service+Version 10.129.64.49
 
 PORT   STATE SERVICE VERSION
 22/tcp open  ssh     OpenSSH 7.2p2 Ubuntu 4ubuntu2.1 (Ubuntu Linux; protocol 2.0)
@@ -90,7 +90,7 @@ Our choices are HTTP and SSH, giving us a fairly straightforward choice ahead. A
 
 We have safely determined that port 80 is going to be our first port of call, and ahead we'll find that it's running a common CMS, WordPress. We'll need to inspect the content being hosted first before attempting to scan for any possible misconfigurations or vulnerabilities.
 
-First off, we can use our web browser (Firefox in this case, as it's Kali's default) to inspect `http://10.129.64.498` and see what's being hosted. We can see the URL change to `http://tenten.htb`, but no content is loaded. We'll need to edit our `/etc/hosts` file in order to correctly display the page. This happens because the web server is configured with virtual host routing, something we discussed in my [Popcorn](https://hackopotamus.github.io/portfolio/writeups/2026-08-05-htb-popcorn/) write-up.
+First off, we can use our web browser (Firefox in this case, as it's Kali's default) to inspect `http://10.129.64.49` and see what's being hosted. We can see the URL change to `http://tenten.htb`, but no content is loaded. We'll need to edit our `/etc/hosts` file in order to correctly display the page. This happens because the web server is configured with virtual host routing, something we discussed in my [Popcorn](https://hackopotamus.github.io/portfolio/writeups/2026-08-05-htb-popcorn/) write-up.
 
 We use `sudo` and `vim` to edit the `/etc/hosts` file, adding the box's IP address and mapping it to its hostname, as shown below.
 ```bash
@@ -106,7 +106,7 @@ We use `sudo` and `vim` to edit the `/etc/hosts` file, adding the box's IP addre
 ff02::1         ip6-allnodes
 ff02::2         ip6-allrouters
 
-10.129.64.498     tenten.htb 
+10.129.64.49     tenten.htb 
 ```
 
 With the hostname now correctly mapped, we can refresh the page and see the site being hosted on port 80. From the content presented, we can see that it's some kind of job portal, while the page itself describes the site as **"Just another WordPress site"**.
@@ -117,7 +117,7 @@ This gives us a strong indication that WordPress is being used, which we can con
 
 We can take a little time to look around the site, and in doing so we gather two useful pieces of information. The first is an indication of when the machine was created. Based on a post made by a user, we can see that the last interaction took place on **April 12, 2017 at 8:37 AM**.
 
-The second piece of information is a username, `takis`, who appears to have created the posts. This gives us the answer to 'Guided Mode' task three's question. 
+The second piece of information is a username, takis, who appears to have created the posts. We can make a note of this as a potential active user on the machine and keep it in mind for later if we need it. This gives us the answer to 'Guided Mode' task three's question. 
 ![HTTP UserDate]({{ '/assets/img/htb-tenten/Tenten_HTTP_UserDate.png' | relative_url }})
 
 At this point, we can start looking for any potential vulnerabilities that may be present on the machine. We'll fire up Burp Suite and capture requests as we explore the website, giving us an opportunity to inspect how the application handles our interactions.
@@ -367,9 +367,9 @@ Given that we've already managed to place a web shell on the machine by bypassin
 Doing some research based on the references available to us shows that _"It is possible to enumerate the CV filename that is uploaded on the server and then access the CV file by performing a brute force attack to the WordPress upload directory structure."_
 
 With this in mind, we can formulate a theory around how the IDOR vulnerability might work. We know that the vulnerable functionality is part of Job Manager, so we can think back to where we uploaded our CV. Looking at the URL, we can see the path is:
-
-* `http://tenten.htb/index.php/jobs/apply/8/`
-
+```
+http://tenten.htb/index.php/jobs/apply/8/ <-- IDOR?
+```
 Perhaps the number at the end of the URL is being used as an identifier. If that's the case, we might be able to manipulate it and see whether we can access something we shouldn't.
 ![CVE 2015 6668 IDOR]({{ '/assets/img/htb-tenten/Tenten_CVE-2015-6668_IDOR.png' | relative_url }})
 
@@ -439,9 +439,9 @@ Now that we're back on track, we can copy the `CVE-2015-6668` script from the wr
 > Although there is absolutely no shame in taking a hint when we need to, failing to recognise that the exploit was more than just the IDOR vulnerability made things more complicated than they needed to be. We could have used a Google dork such as `site:github.com CVE-2015-6668` to find two working versions that required no edits at all.
 > 
 > * [Python 2 Version](https://github.com/h3x0v3rl0rd/CVE-2015-6668/blob/main/brute.py) - Working version that already contains filetype modifications.
-> * [Python 3 Versions](https://github.com/jimdiroffii/CVE-2015-6668) - Ported Python 3 version that also contains the filetype modifications.
+> * [Python 3 Version](https://github.com/jimdiroffii/CVE-2015-6668) - Ported Python 3 version that also contains the file type modifications.
 > 
-> Just to be clear, this was simply an oversight and was likely a result of being tired while attempting to juggle CREST certification study, a time-consuming write-up, and life in general. It's also a good example of something we discussed in the **Bastard** machine: sometimes we can overcomplicate things or miss something obvious, and that's something that happens to all of us at some point. I'm leaving this section in to show that the process isn't always as straightforward as the finished write-up might make it look.
+> Just to be clear, this was simply an oversight and was likely a result of being tired while attempting to juggle CREST certification study, a time-consuming write-up, and life in general. It's also a good example of something we discussed in the [Bastard](https://hackopotamus.github.io/portfolio/writeups/2026-09-13-htb-bastard/) machine: sometimes we can overcomplicate things or miss something obvious, and that's something that happens to all of us at some point. I'm leaving this section in to show that the process isn't always as straightforward as the finished write-up might make it look.
 
 We notice that the script is written in Python 2, but fortunately it requires no modifications to run. The required `requests` module is already installed, so we can run the script as it is.
 
@@ -478,7 +478,7 @@ Enter a file name: HackerAccessGranted
 ```
 
 
-Checking the exploit, we can see that we'll need to make a couple of changes before it will work for our situation. There are two things that need to be updated: one is a logical change based on what we already know, while the other requires a little more trial and error.
+Checking the exploit, we can see that we'll need to make a couple of changes before it will work for our scenario. There are two things that need to be updated: one is a logical change based on what we already know, while the other requires a little more trial and error.
 
 The first change is to the date range used by the script. The original range only goes up to 2018, so we expand this to 2026 in the hope that we can locate the `shell.php` file we uploaded earlier.
 
@@ -687,7 +687,7 @@ Enter passphrase for key 'id_rsa':
 
 Given how CTF-like the box has been so far, the next move seems fairly obvious: we'll need to try cracking the passphrase protecting the key. The fact that we've been handed an `id_rsa` key, only to find that it's protected by a passphrase, is a pretty strong indication that we're expected to try and recover it.
 
-To do this, we'll first need to use `ssh2john` to convert the private key into a format that `John the Ripper` can understand. We can then use `john` alongside the `rockyou.txt` wordlist to attempt to crack the passphrase and see if we're able to recover it.
+To do this, we'll first need to use `ssh2john` to convert the private key into a format that John the Ripper can understand. We can then use `john` alongside the `rockyou.txt` wordlist to attempt to crack the passphrase and see if we're able to recover it.
 ```Shell
 ┌──(kali㉿kali)-[~/Documents/Hack The Box/Machines/TenTen/Loot]
 └─$ ssh2john id_rsa > id_rsa.hash
@@ -713,7 +713,7 @@ The cracking attempt is successful, and the results show us that the password fo
 
 We now have a working private key and the passphrase needed to unlock it, so we can finally log into the machine as the `takis` user. We can use the SSH service we identified during our initial scan to establish our session and, once connected, begin looking for the user flag.
 
-This time, with the correct passphrase available, we're able to authenticate successfully and log directly into the machine using SSH. Once the login completes, we can confirm that we're running as the `takis` user.
+This time, with the correct passphrase available, we're able to authenticate successfully and log directly into the machine using SSH. Once the login completes, we can see from the prompt that we're running as the `takis` user.
 ```Shell
 ┌──(kali㉿kali)-[~/Documents/Hack The Box/Machines/TenTen]
 └─$ ssh -i id_rsa takis@tenten.htb
@@ -774,7 +774,7 @@ The file appears to be a non-standard executable, so we'll first need to fingerp
 - **`$1 $2 $3 $4`** — these are positional parameters representing the first four arguments passed to the script. For example, if we ran `./fuckin.sh whoami -la /etc`, then `$1` would be `whoami`, `$2` would be `-la`, `$3` would be `/etc`, and `$4` would be empty.
 - **The lack of quotes around the variables** — Bash treats `$1` as the command to execute, while `$2`, `$3`, and `$4` are passed as arguments to it. In effect, the script simply executes whatever command we provide and forwards up to three additional arguments.
 
-This is particularly interesting because we already know that `takis` can execute this script as root without a password. If the script allows us to specify the command that gets executed, we may have a straightforward way to turn this sudo permission into root command execution.
+This is particularly interesting because we already know that `takis` can execute this script as root without a password. If the script allows us to specify the command that gets executed, we may have a straightforward way to turn this sudo permission into command execution with root privilleges.
 ```Shell
 takis@tenten:~$ file /bin/fuckin
 /bin/fuckin: Bourne-Again shell script, ASCII text executable
@@ -803,7 +803,7 @@ To escalate our privileges, we can use the Bash script with our `sudo` permissio
 takis@tenten:~$ sudo fuckin bash
 root@tenten:~#
 ```
-At this point, we've successfully compromised the box from our initial enumeration through to full root access, completing the machine.
+At this point, we've successfully compromised the box from our initial enumeration through to full root access, in the next section we can grab the root flag.
 
 ---
 ## Obtaining the Root Flag
@@ -864,7 +864,8 @@ root@tenten:/var/www/html/wp-content/uploads/2026/09# cat shell.php_.jpg
 When navigating to `http://tenten.htb/wp-content/uploads/2026/09/shell.php_.jpg`, we can see that the file doesn't work as a web shell. This looks like an intentional countermeasure, and as we mentioned earlier, it's likely designed to keep the progression of the box on its intended path. Given how CTF-like this machine has been throughout, it wouldn't be surprising if this was deliberately included to steer us away from this alternative route.
 ![BeyondRoot NoWebShell]({{ '/assets/img/htb-tenten/Tenten_BeyondRoot_NoWebShell.png' | relative_url }})
 
-> **What actually happened:**
+> **What actually happened**
+>
 >After finding the renamed file, we can now explain what happened to our original `shell.php.jpg` upload. WordPress runs uploaded filenames through `sanitize_file_name()` before storing them, and part of this process checks for multiple extensions. When WordPress encounters a filename such as `shell.php.jpg`, it sanitises the intermediate extension by replacing the dot with an underscore, resulting in `shell.php_.jpg`.
 >
 >This is intended to prevent the classic `shell.php.jpg` bypass technique, where a misconfigured web server could potentially treat the `.php` portion of a filename as a PHP handler rather than only considering the final extension. In our case, this means the filename was changed by WordPress itself before being stored, rather than the upload simply failing.
@@ -873,9 +874,9 @@ When navigating to `http://tenten.htb/wp-content/uploads/2026/09/shell.php_.jpg`
  
 #### IDOR Vulnerability
 
-We can also have a little poke around and look at how the IDOR vulnrability is happening, we will first need to access the backend databse for the wordpress application. Afterwards we can check it's contents and see if we can discover anything that might indicate why the vulnrability exists.
+We can also have a little poke around and look at how the IDOR vulnrability is happening, we will first need to access the backend database for the wordpress application. Afterwards we can check it's contents and see if we can discover anything that might indicate why the vulnrability exists.
 
-We move back to web root and use `ls` with `grep` to find any PHP files that are avaiable, we soon find `wp-config.php` and we know that configuration files commonly hold passwords for access to things like attached databses and the like.
+We move back to web root and use `ls` with `grep` to find any PHP files that are available, we soon find `wp-config.php` and we know that configuration files commonly hold passwords for access to things like attached databases and the like.
 ```Shell
 root@tenten:/var/www/html/wp-content/uploads/2026/09# cd /var/www/html
 
@@ -897,7 +898,7 @@ wp-trackback.php
 xmlrpc.php  
 ```
 
-Checking the file, we can see evidence of password reuse. The password appears to be based on the `SuperPassword` value we discovered earlier, with `111` appended to it to create `SuperPassword111`. We can use these credentials to access the database as the `wordpress` user, giving us another useful avenue to investigate.
+Checking the file, we can see evidence of password reuse. The password appears to be based on the `SuperPassword` value we discovered earlier, with `111` appended to it to create `SuperPassword111`. We can use these credentials to access the database as the `wordpress` user, giving us the opportunity to investigate the inner workings of the application through its underlying database.
 ```PHP
 <?php
 
