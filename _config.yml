@@ -16,7 +16,7 @@ collections:
     permalink: /writeups/:name/
   tools:
     output: true
-    permalink: /tools/:name/
+    permalink: /websec/:name/
 
 defaults:
   - scope:
@@ -26,9 +26,9 @@ defaults:
       layout: "writeup"
   - scope:
       path: ""
-      type: "tools"
+      type: "websec"
     values:
-      layout: "tool"
+      layout: "websec"
 
 markdown: kramdown
 highlighter: rouge
