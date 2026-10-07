@@ -7,10 +7,10 @@ permalink: /websec/
   <header class="index-head">
     <p class="eyebrow mono">// websec</p>
     <h1 class="section-title">Web Sec</h1>
-    <p class="index-lede">A journey throught Web Security training — {{ site.websec | size }} total.</p>
+    <p class="index-lede">My journey throught Web Security training — {{ site.websec | size }} total.</p>
   </header>
 
-  {% assign all_tools = site.websec | sort: 'date' | reverse %}
+  {% assign all_websec = site.websec | sort: 'date' | reverse %}
   <div class="grid">
     {% for item in all_websec %}
       {% include card-websec.html item=item %}
