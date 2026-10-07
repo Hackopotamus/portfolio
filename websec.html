@@ -3,17 +3,22 @@ layout: default
 title: Websec
 permalink: /websec/
 ---
+{% assign modules = site.websec | where: "kind", "module" | sort: "order" %}
+{% assign labs = site.websec | where: "kind", "lab" %}
 <section class="section wrap">
   <header class="index-head">
     <p class="eyebrow mono">// websec</p>
     <h1 class="section-title">Web Sec</h1>
-    <p class="index-lede">A journey through Web Security training — {{ site.websec | size }} total.</p>
+    <p class="index-lede">Working through the PortSwigger Web Security Academy: {{ modules | size }} modules, {{ labs | size }} labs written up.</p>
   </header>
- 
-  {% assign all_websec = site.websec | sort: 'date' | reverse %}
-  <div class="grid">
-    {% for item in all_websec %}
-      {% include card-websec.html item=item %}
-    {% endfor %}
-  </div>
+
+  {% assign groups = modules | group_by: "category" %}
+  {% for group in groups %}
+    <h2 class="section-title"><span class="mono num">//</span> {{ group.name }}</h2>
+    <div class="grid">
+      {% for item in group.items %}
+        {% include card-websec.html item=item %}
+      {% endfor %}
+    </div>
+  {% endfor %}
 </section>

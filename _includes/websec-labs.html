@@ -1,0 +1,10 @@
+{% comment %}
+  Lists every lab belonging to a module, in order.
+  Usage on a module page: {% include websec-labs.html module=page.module %}
+{% endcomment %}
+{% assign module_labs = site.websec | where: "kind", "lab" | where: "module", include.module | sort: "order" %}
+<div class="grid">
+  {% for item in module_labs %}
+    {% include card-websec.html item=item %}
+  {% endfor %}
+</div>

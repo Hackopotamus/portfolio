@@ -25,7 +25,7 @@ layout: default
   </div>
 </section>
 
-{% assign recent_websec = site.websec | sort: 'date' | reverse %}
+{% assign recent_websec = site.websec | where: "kind", "lab" | sort: 'date' | reverse %}
 <section class="section wrap">
   <div class="section-head">
     <h2 class="section-title"><span class="mono num">//</span> Web Sec</h2>

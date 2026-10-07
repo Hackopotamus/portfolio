@@ -16,7 +16,7 @@ collections:
     permalink: /writeups/:name/
   websec:
     output: true
-    permalink: /websec/:name/
+    permalink: /websec/:path/
 
 defaults:
   - scope:
