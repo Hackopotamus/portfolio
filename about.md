@@ -19,11 +19,11 @@ Over the following years, I transitioned into a Security Operations Centre (SOC)
 
 Today, I work as a Security Analyst and continue to develop both my offensive and defensive capabilities. I am currently studying for the CREST Practitioner Security Analyst (CPSA), which will allow me to pursue the CREST Registered Penetration Tester (CRT) through equivalency. Beyond that, I plan to complete the Certified Red Team Operator (CRTO), Hack The Box Certified Penetration Testing Specialist (CPTS), and Microsoft SC-200 to further strengthen my expertise across both red and blue team disciplines.
 
-Outside of work, I dedicate a significant amount of time to hands-on learning through platforms such as Hack The Box and TryHackMe. I currently hold the Hacker rank on Hack The Box with more than 85 rooted machines and am ranked within the top 3% of users on TryHackMe. I have a particular interest in exploitation, Active Directory security, malware analysis, and adversary emulation, and I enjoy documenting my learning through technical write-ups and tooling published in this repository.
+Outside of work, I dedicate a significant amount of time to hands-on learning through platforms such as Hack The Box and TryHackMe. I currently hold the Hacker rank on Hack The Box with more than 85 rooted machines and am ranked within the top 3% of users on TryHackMe. I have a particular interest in exploitation, Active Directory security, malware analysis, and adversary emulation, and I enjoy documenting my learning through technical write-ups published here.
 
 While I am not actively seeking a new position, I am always happy to connect with others in the cyber security community and am open to hearing about interesting opportunities, particularly those focused on penetration testing, adversary simulation, and red team operations.
 
-Get in touch: [github.com/{{ site.github }}](https://github.com/{{ site.github }}){% if site.email %} · [email](mailto:{{ site.email }}){% endif %}
+Get in touch: [github.com/{{ site.github }}](https://github.com/{{ site.github }}){% if site.email and site.email != "" %} · [email](mailto:{{ site.email }}){% endif %}
 
   </div>
 </section>

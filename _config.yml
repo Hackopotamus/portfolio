@@ -1,13 +1,13 @@
 title: "Hackopotamus"
 tagline: "SOC Analyst and Offensive Security enthusiast"
-description: "Write-ups and tools in offensive and defensive security."
+description: "Write-ups in offensive and defensive security."
 author: "Lloyd Wright"
 
 github: "Hackopotamus"
 email: ""
 linkedin: "https://uk.linkedin.com/in/lloyd-wright-b77636171"
 
-url: ""
+url: "https://hackopotamus.github.io"
 baseurl: "/portfolio"
 
 collections:

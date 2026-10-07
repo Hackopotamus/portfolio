@@ -4,6 +4,7 @@ date: 2026-07-12
 ref: WU-002
 summary: "Rooting the retired HTB 'Legacy' machine — enumerating SMB on Windows XP SP3, discovering two CVEs with NSE scripts, validating both MS08-067 and MS17-010 with Metasploit and learning from the process, manually exploiting both using ported Python 3 scripts."
 tags: [hack-the-box, smb, ms08-067, ms17-010, windows, metasploit]
+permalink: /writeups/2026-07-12-htb-legacy/
 ---
 
 ## Description
@@ -426,7 +427,7 @@ module_base = 0x6f880000
 We generate our shellcode with `msfvenom`, using the bad-character list from the
 script's header to avoid breaking the exploit, and paste the output into `buf`.
 
-![The msfvenom shellcode pasted into the buf variable in the Python 3 exploit]({{ '/assets/img/htb-legacy/ms08-067-buffer.png' | relative_url }})
+![The msfvenom shellcode pasted into the buf variable in the Python 3 exploit]({{ '/assets/img/writeups/htb-legacy/ms08-067-buffer.png' | relative_url }})
 
 With a netcat listener ready and the modified code saved, we run the exploit using option `7` and catch a shell.
 
@@ -538,7 +539,7 @@ There is also the auxiliary module `auxiliary/admin/smb/ms17_010_command` that
 can run commands directly on the system. We explore this briefly before running
 into a dead end and moving on to manual exploitation.
 
-![Metasploit ms17_010_command module options]({{ '/assets/img/htb-legacy/ms17-010-show-options.png' | relative_url }})
+![Metasploit ms17_010_command module options]({{ '/assets/img/writeups/htb-legacy/ms17-010-show-options.png' | relative_url }})
 
 We set `RHOSTS` and use the `COMMAND` option to test RCE with a ping back to our machine.
 

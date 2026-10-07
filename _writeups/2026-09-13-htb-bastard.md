@@ -4,12 +4,13 @@ date: 2026-09-13
 ref: WU-007
 summary: "Rooting the retired HTB 'Bastard' machine — exploiting a PHP deserialisation vulnerability in the Drupal 7 Services module to gain initial access as the IIS anonymous user, then escalating to SYSTEM via both Juicy Potato (abusing SeImpersonatePrivilege) and the MS15-051 kernel exploit on an unpatched Windows Server 2008 R2 build."
 tags: [hack-the-box, drupal, cms, rce, php-deserialisation, drupalgeddon, cve-2018-7600, cve-2018-7602, windows, privilege-escalation, ms15-051, cve-2015-1701, juicy-potato, seimpersonateprivilege, php, iis]
+permalink: /writeups/2026-09-13-htb-bastard/
 ---
 
 <h1 align="center">Bastard — Hack The Box Write-up</h1>
 
 <p align="center">
-  <img src="{{ '/assets/img/htb-bastard/Bastard_logo.png' | relative_url }}" width="300"/>
+  <img src="{{ '/assets/img/writeups/htb-bastard/Bastard_logo.png' | relative_url }}" width="300"/>
 </p>
 
 **Description:** Bastard is not overly challenging, however it requires some knowledge of PHP in order to modify and use the proof of concept required for initial entry. This machine demonstrates the potential severity of vulnerabilities in content management systems.
@@ -103,7 +104,7 @@ PORT      STATE SERVICE VERSION
 At this point, HTTP seems like the most logical place to start. Although methodologies do exist for testing RPC ports, HTTP exposes a very large attack surface, and it would be prudent to check here first before moving on to the other ports. Ahead, we find a Drupal web application, and we can start investigating the possible attack vectors exposed by the application.
 
 First, let's confirm what's being hosted on port 80. We use our browser (Firefox, as it's Kali's default) and head to `http://10.129.57.233`. When inspected, we find a Drupal web application, giving us the answer to 'Guided Mode' task two's question.
-![HTTP Drupal7]({{ '/assets/img/htb-bastard/Bastard_HTTP_Drupal7.png' | relative_url }})
+![HTTP Drupal7]({{ '/assets/img/writeups/htb-bastard/Bastard_HTTP_Drupal7.png' | relative_url }})
 
 There are a few routes we can go down here. We can attempt password guessing and default credentials, create an account and look around a little, or attempt some directory brute forcing.
 
@@ -347,7 +348,7 @@ We now need to formulate a little list of things to do before the exploit is usa
 1. **Change the `$url` variable:** to our box's IP of `http://10.129.57.233`, otherwise the exploit won't reach the Bastard machine.
 2. **Understand the endpoint variables:**: We see two variables named `&endpoint_path` and `$endpoint` that we're going to need to understand before moving forward with testing. We'll look into these as our next task.
 3. **Modify the webshell:** We see that `$file` is a file that gets written to the machine. It writes a webshell using a randomized filename (for example, `dixuSOspsOUU.php`). We'll change the filename to `shell.php` and edit the payload to a simpler variation, allowing us to trigger commands through a basic GET request (`?cmd=`) rather than having to send raw PHP in a POST body each time.
-![RCE DrupalPHP]({{ '/assets/img/htb-bastard/Bastard_RCE_DrupalPHP.png' | relative_url }})
+![RCE DrupalPHP]({{ '/assets/img/writeups/htb-bastard/Bastard_RCE_DrupalPHP.png' | relative_url }})
 
 In our previous Feroxbuster scan, we never found anything called `/rest_endpoint`, which means we're back to looking for evidence of its existence. We need to confirm that the endpoint is actually present on the target; otherwise, our attack won't work, as it is a required component of the exploitation process.
 
@@ -783,7 +784,7 @@ msf post(multi/recon/local_exploit_suggester) > run
 Once the module completes, it gives us thirteen possible modules that we can investigate on this machine. We already know that Microsoft Windows Server 2008 R2 Datacenter was released on October 22, 2009, and our earlier enumeration showed that no hotfixes have been applied.
 
 This gives us a useful starting point when filtering the results. Any vulnerabilities affecting this version of Windows and disclosed after its release date are potential candidates, although we'll still need to investigate each one and confirm whether it is actually applicable to our environment.
-![PrivEsc Suggester]({{ '/assets/img/htb-bastard/Bastard_PrivEsc_Suggester.png' | relative_url }})
+![PrivEsc Suggester]({{ '/assets/img/writeups/htb-bastard/Bastard_PrivEsc_Suggester.png' | relative_url }})
 
 **MS15-051 (Automated)**
 
@@ -1240,18 +1241,18 @@ This means we'll need to re-run `drupal.php` because we've reset the machine and
 We first need to gain access to the Drupal CMS control panel. For this, we'll use **Cookie Editor** to create a new session cookie using the values we retrieved from `session.json`, effectively replacing our current session with that of the administrator.
 
 Once we've entered the required values and saved the cookie, we can refresh the page. If everything has been entered correctly, we should now be authenticated to the Drupal CMS as the administrator.
-![BeyondRoot Cookie]({{ '/assets/img/htb-bastard/Bastard_BeyondRoot_Cookie.png' | relative_url }})
+![BeyondRoot Cookie]({{ '/assets/img/writeups/htb-bastard/Bastard_BeyondRoot_Cookie.png' | relative_url }})
 
 After refreshing the page, we can see that we're now logged in as the administrator. The instructions in the text file we looked at earlier tell us that we'll need to know the **node ID** in order to construct the requests required by the exploit.
 
 We can find this by clicking **"Find content"** in the top-left corner of the Drupal control panel, which is highlighted in the image below.
-![BeyondRoot AdminSession]({{ '/assets/img/htb-bastard/Bastard_BeyondRoot_AdminSession.png' | relative_url }})
+![BeyondRoot AdminSession]({{ '/assets/img/writeups/htb-bastard/Bastard_BeyondRoot_AdminSession.png' | relative_url }})
 
 Once the panel opens, we can see a node named **"REST"**. Hovering over the link shows us the URL `http://10.129.61.127/node/1`, which tells us that the node ID is `1`. We can also click the link to confirm that this is the correct node.
-![BeyondRoot Content]({{ '/assets/img/htb-bastard/Bastard_BeyondRoot_Content.png' | relative_url }})
+![BeyondRoot Content]({{ '/assets/img/writeups/htb-bastard/Bastard_BeyondRoot_Content.png' | relative_url }})
 
 After clicking the link, we can confirm that the **"REST"** API is listed as node `1`. This gives us the node ID we need and allows us to formulate the request required for the exploit.
-![BeyondRoot NodeOne]({{ '/assets/img/htb-bastard/Bastard_BeyondRoot_NodeOne.png' | relative_url }})
+![BeyondRoot NodeOne]({{ '/assets/img/writeups/htb-bastard/Bastard_BeyondRoot_NodeOne.png' | relative_url }})
 
 We can download a Python version of the exploit [here](https://raw.githubusercontent.com/oways/SA-CORE-2018-004/master/drupalgeddon3.py) that creates the request for us. We'll save the script as `dg3.py` for shorthand ease of use when we use it ahead.
 

@@ -15,8 +15,8 @@ layout: default
 {% assign recent_writeups = site.writeups | sort: 'date' | reverse %}
 <section class="section wrap">
   <div class="section-head">
-    <h2 class="section-title"><span class="mono num">//</span> Write-ups</h2>
-    <a class="section-link mono" href="{{ '/writeups/' | relative_url }}">all write-ups →</a>
+    <h2 class="section-title"><span class="mono num">//</span> Hack The Box</h2>
+    <a class="section-link mono" href="{{ '/writeups/' | relative_url }}">all HTB write-ups →</a>
   </div>
   <div class="grid">
     {% for item in recent_writeups limit: 4 %}
@@ -28,8 +28,8 @@ layout: default
 {% assign recent_websec = site.websec | where: "kind", "lab" | sort: 'date' | reverse %}
 <section class="section wrap">
   <div class="section-head">
-    <h2 class="section-title"><span class="mono num">//</span> Web Sec</h2>
-    <a class="section-link mono" href="{{ '/websec/' | relative_url }}">all websec →</a>
+    <h2 class="section-title"><span class="mono num">//</span> Latest Web Sec Labs</h2>
+    <a class="section-link mono" href="{{ '/websec/' | relative_url }}">all web sec →</a>
   </div>
   <div class="grid">
     {% for item in recent_websec limit: 4 %}

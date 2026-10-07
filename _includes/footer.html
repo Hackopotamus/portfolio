@@ -3,9 +3,9 @@
     <span class="mono footer-sig">{{ site.title }} — {{ site.tagline }}</span>
     <span class="mono footer-meta">
       &copy; {{ site.time | date: '%Y' }}
-      {% if site.email %} · <a href="mailto:{{ site.email }}">email</a>{% endif %}
+      {% if site.email and site.email != "" %} · <a href="mailto:{{ site.email }}">email</a>{% endif %}
       {% if site.github and site.github != "your-username" %} · <a href="https://github.com/{{ site.github }}">github</a>{% endif %}
-      {% if site.linkedin %} · <a href="https://www.linkedin.com/in/{{ site.linkedin }}">linkedin</a>{% endif %}
+      {% if site.linkedin %} · <a href="{{ site.linkedin }}">linkedin</a>{% endif %}
     </span>
   </div>
 </footer>

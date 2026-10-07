@@ -5,7 +5,7 @@ category: "Server-side"
 module: path-traversal
 order: 1
 date: 2026-10-07
-description: "Reading arbitrary files from the server by manipulating file path parameters."
+summary: "Reading arbitrary files from the server by manipulating file path parameters."
 ---
 
 <!-- Replace this paragraph with your collated module notes from Obsidian. -->

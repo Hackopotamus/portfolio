@@ -4,12 +4,13 @@ date: 2026-08-29
 ref: WU-006
 summary: "Rooting the retired HTB 'Optimum' machine — exploiting a remote code execution vulnerability in HttpFileServer 2.3 to gain an initial foothold as a low-privileged user, then escalating to SYSTEM via two separate Windows kernel privilege escalation exploits."
 tags: [hack-the-box, hfs, http-file-server, windows, rce, cve-2014-6287, privilege-escalation, Metasploit, wes-ng, sherlock, ms16-032, cve-2019-1458]
+permalink: /writeups/2026-08-29-htb-optimum/
 ---
 
 <h1 align="center">Optimum — Hack The Box Write-up</h1>
 
 <p align="center">
-  <img src="{{ '/assets/img/htb-optimum/Optimum_Logo.png' | relative_url }}" width="300"/>
+  <img src="{{ '/assets/img/writeups/htb-optimum/Optimum_Logo.png' | relative_url }}" width="300"/>
 </p>
 
 **Description:** Optimum is an easy-rated Windows machine on Hack The Box focused on exploiting a vulnerable file server and Windows kernel privilege escalation. The attack path involves exploiting a remote code execution vulnerability in HttpFileServer 2.3 to gain initial access as a low-privileged user, followed by escalating to SYSTEM using two seperate local privilege escalation exploits against a partially patched but outdated Windows Server 2012 R2 Standard build.
@@ -79,7 +80,7 @@ As we have no other ports to work with, this looks like it could be our entry po
 Given the lack of alternatives at this point, it makes absolute sense to investigate port 80. Navigating to the webpage, we find an HTTP File Server application that we'll need to investigate further. Checking the version becomes particularly important later, as this information will help us identify a potential route to gaining a foothold on the system.
 
 We can start by opening a browser of our choice (Firefox in this case, as it's Kali's default) and navigating to `http://10.129.54.27/`. When the web application loads, we get some useful information right away. We can see that it's running `HttpFileServer 2.3`, giving us an exact version to work with when searching for vulnerabilities.
-![HTTP HFS2.3]({{ '/assets/img/htb-optimum/Optimum_HTTP_HFS2.3.png' | relative_url }})
+![HTTP HFS2.3]({{ '/assets/img/writeups/htb-optimum/Optimum_HTTP_HFS2.3.png' | relative_url }})
 
 After clicking around a little and attempting some common password guesses, we can check whether there are any default credentials associated with the service. A quick search on Google gives us a strong indication that there are no default credentials available, so there's little more to gain from this approach and we should move on.
 
@@ -157,7 +158,7 @@ Looking at the URL string, there are a few concepts we need to understand before
 2. Because we're using [CyberChef](https://gchq.github.io/CyberChef), we need to be careful with the null byte `%00`. When URL decoded, this represents a NUL byte rather than the literal word `null`. We need to keep the `%00` intact when constructing our payload, otherwise the exploit won't work correctly.
 3. We'll use the script's example to call `c:\windows\SysNative\WindowsPowershell\v1.0\powershell.exe` and then run a quick ping to test the functionality. We could simply call Command Prompt (cmd), but using PowerShell gives us an opportunity to test whether we can execute commands through PowerShell. This will become useful later on.
 4. The double curly braces {{ and }} in the f-string are Python's way of escaping literal `{` and `}` characters. When the URL is actually constructed, these become single braces, so we'll need to account for this when manually recreating the payload.
-![RCE DecodeURL]({{ '/assets/img/htb-optimum/Optimum_RCE_DecodeURL.png' | relative_url }})
+![RCE DecodeURL]({{ '/assets/img/writeups/htb-optimum/Optimum_RCE_DecodeURL.png' | relative_url }})
 
 We can now edit the string to include the variables and corrections discussed above.
 
@@ -183,12 +184,12 @@ Before we copy and paste the string into Firefoxs address bar, we should URL-enc
 > It is best practice to URL encode any payload before embedding it in a request, even when characters _appear_ safe — proxies, WAFs, and application parsers all handle raw special characters inconsistently. Encoding ensures the payload arrives exactly as constructed.
 
 In our case, we can use CyberChef's **URL Encode** operation. Comparing the input and output helps us understand exactly what has been changed and is a working example of what we've learned so far about how special characters are represented within the URL.
-![RCE EncodeURL]({{ '/assets/img/htb-optimum/Optimum_RCE_EncodeURL.png' | relative_url }})
+![RCE EncodeURL]({{ '/assets/img/writeups/htb-optimum/Optimum_RCE_EncodeURL.png' | relative_url }})
 
 For the final step, we'll use `sudo tcpdump -i tun0 icmp` to capture any incoming ICMP traffic. Once the capture is running, we can send the encoded URL request using the browser's address bar and watch for the results.
 
 We see a successful response, with several ICMP requests arriving at our Kali machine. We appear to receive slightly more than the three pings we requested, but this doesn't affect the purpose of the test. The important thing is that we're receiving ICMP traffic from Optimum, confirming that our manually constructed payload is being delivered and executed successfully. This also demonstrates that we have reliable bidirectional connectivity between the two hosts, with no obvious filtering or connectivity issues that should prevent us from establishing a reverse shell later.
-![RCE ICMP]({{ '/assets/img/htb-optimum/Optimum_RCE_ICMP.png' | relative_url }})
+![RCE ICMP]({{ '/assets/img/writeups/htb-optimum/Optimum_RCE_ICMP.png' | relative_url }})
 
 Now that everything is working as expected and we've covered the relevant theory and testing, we can put our knowledge into practice. In the next section, we'll turn our successful exploit into an actual foothold on the system.
 
@@ -539,7 +540,7 @@ This time, we have no issues at all and get a large amount of information to sif
 ```
 
 One thing we can do is check for known vulnerabilities that may allow us to escalate our privileges. Metasploit has a module specifically designed for this task, which is one of the benefits of using an automated framework. A quick search for `Suggester` gives us two options: one for suggesting potential exploits on a system, and another for identifying methods of establishing persistence. Given our current needs, the former is what we're looking for, so we select `post/multi/recon/local_exploit_suggester`. This also gives us the answer to 'Guided Mode' task six's question.
-![PrivEsc Suggester]({{ '/assets/img/htb-optimum/Optimum_PrivEsc_Suggester.png' | relative_url }})
+![PrivEsc Suggester]({{ '/assets/img/writeups/htb-optimum/Optimum_PrivEsc_Suggester.png' | relative_url }})
 
 Selecting the module and running `show options`, we can see that we only need to configure one parameter. In this instance, we set `SESSION` to `1`, telling Metasploit to run the module against our active Meterpreter session.
 ```Shell
@@ -562,7 +563,7 @@ msf post(multi/recon/local_exploit_suggester) > run
 ```
 
 Looking at the results, we get around ten potentially vulnerable modules that may work against the system. For our purposes, we'll select two: **MS16-032** and **CVE-2019-1458**. The reasoning behind these choices will be discussed in the _Beyond Root_ section, where we'll explore both vulnerabilities in a little more depth.
-![PrivEsc ExploitSuggestion]({{ '/assets/img/htb-optimum/Optimum_PrivEsc_ExploitSuggestion.png' | relative_url }})
+![PrivEsc ExploitSuggestion]({{ '/assets/img/writeups/htb-optimum/Optimum_PrivEsc_ExploitSuggestion.png' | relative_url }})
 
 
 **MS16-032**
@@ -811,7 +812,7 @@ We've already discussed how old this machine is, and we'll once again be calling
 We download the tool from Rasta Mouse's GitHub repository, but we'll need to make a small modification to the script. When attempting to run Sherlock natively and / or through dot sourcing, we find that it is notorious for hanging on slower systems like Optimum, which in turn kills some of our shell sessions.
 
 To prevent this from happening, we can explicitly add `Find-AllVulns` to the bottom of the `Sherlock.ps1` script. This means that when the script is executed, it will call only the `Find-AllVulns` function rather than attempting to run the full script and its associated functionality.
-![Sherlock ScriptEdits]({{ '/assets/img/htb-optimum/Optimum_Sherlock_ScriptEdits.png' | relative_url }})
+![Sherlock ScriptEdits]({{ '/assets/img/writeups/htb-optimum/Optimum_Sherlock_ScriptEdits.png' | relative_url }})
 
 Once we've made the required edits, we can transfer the script to the Optimum machine using the same Python 3 web server we've had running in the background.
 ```PowerShell
@@ -983,7 +984,7 @@ To finish, we'll exploit one of the vulnerabilities and complete the manual appr
 After downloading and inspecting the exploit, we can see an example of how it can be used near the top of the script. Given the issues we encountered with Sherlock freezing our shell, it seems sensible to take some precautions here as well. We can add a self-call to the bottom of the script, instructing it to execute the `rev.exe` shell we previously transferred to the machine.
 
 Using the absolute path to `rev.exe` removes any reliance on the current working directory and helps avoid another potential source of failure when the payload is executed.
-![Invoke MS16 032 ScriptEdits]({{ '/assets/img/htb-optimum/Optimum_Invoke-MS16-032_ScriptEdits.png' | relative_url }})
+![Invoke MS16 032 ScriptEdits]({{ '/assets/img/writeups/htb-optimum/Optimum_Invoke-MS16-032_ScriptEdits.png' | relative_url }})
 
 Before doing anything else we first set up a netcat listenr to catch the connection once `rev.exe` is again executed. Afterwards with `Invoke-MS16032.ps1` edited and saved to our Kali machine, we can use the previous IEX command to download the file from our Python 3 webserver and run it in memory.
 ```PowerShell

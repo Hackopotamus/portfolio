@@ -6,7 +6,7 @@ module: path-traversal
 level: apprentice
 order: 1
 date: 2026-10-07
-description: "Reading /etc/passwd through an unvalidated image filename parameter, with a remediation write-up and CVSS 3.1 score."
+summary: "Reading /etc/passwd through an unvalidated image filename parameter, with a remediation write-up and CVSS 3.1 score."
 ---
 
 This lab contains a path traversal vulnerability in the way product images are displayed.

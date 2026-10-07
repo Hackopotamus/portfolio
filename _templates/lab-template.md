@@ -6,7 +6,7 @@ module: module-slug            # same as the module page
 level: apprentice              # apprentice | practitioner | expert
 order: 1                       # matches the NN- filename prefix
 date: 2026-01-01
-description: "One-line summary shown on the card."
+summary: "One-line summary shown on the card."
 ---
 
 Lab description.

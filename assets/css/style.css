@@ -16,7 +16,7 @@
   --accent-dim: #C9861E;
   --accent-wash:#2A2413;
 
-  --teal:       #56C7C0;  /* secondary, used sparingly for tool language */
+  --teal:       #56C7C0;  /* secondary, used sparingly */
 
   --font-display: "Archivo", system-ui, sans-serif;
   --font-body:    "Inter", system-ui, sans-serif;
@@ -180,10 +180,10 @@ a { color: inherit; text-decoration: none; }
   text-transform: uppercase; padding: 3px 8px; border-radius: 4px;
   border: 1px solid var(--border); color: var(--muted);
 }
-.status--stable       { color: var(--teal);   border-color: #24463f; background: #12211f; }
-.status--wip,
-.status--beta         { color: var(--accent); border-color: #4a3c17; background: var(--accent-wash); }
-.status--archived     { color: var(--muted); }
+/* Web Security Academy lab levels */
+.status--apprentice   { color: var(--teal);   border-color: #24463f; background: #12211f; }
+.status--practitioner { color: var(--accent); border-color: #4a3c17; background: var(--accent-wash); }
+.status--expert       { color: #E8736B;       border-color: #4a2523; background: #241413; }
 
 /* Tags */
 .tags { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; padding: 0; margin: 0; }
@@ -192,7 +192,6 @@ a { color: inherit; text-decoration: none; }
   background: var(--surface-2); border: 1px solid var(--border-soft);
   padding: 3px 9px; border-radius: 5px;
 }
-.card--tool .tags li { border-radius: 5px; }
 
 /* =========================================================================
    Index pages
@@ -200,9 +199,10 @@ a { color: inherit; text-decoration: none; }
 .index-head { margin-bottom: 28px; }
 .index-head .section-title { font-size: 2rem; margin: 6px 0 10px; }
 .index-lede { color: var(--muted); margin: 0; }
+.group-title { margin: 40px 0 16px; }
 
 /* =========================================================================
-   Entry (single write-up / tool) pages
+   Entry (single write-up / lab) pages
    ========================================================================= */
 .entry { max-width: 760px; padding-top: 40px; padding-bottom: 72px; }
 .back { display: inline-block; color: var(--muted); font-size: 13px; margin-bottom: 28px; transition: color .15s ease; }

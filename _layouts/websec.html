@@ -1,22 +1,27 @@
 ---
 layout: default
 ---
+{% assign parent = nil %}
+{% if page.kind == "lab" %}
+  {% assign parent = site.websec | where: "kind", "module" | where: "module", page.module | first %}
+{% endif %}
 <article class="entry wrap">
-  <a class="back mono" href="{{ '/websec/' | relative_url }}">← websec</a>
+  {% if parent %}
+    <a class="back mono" href="{{ parent.url | relative_url }}">← {{ parent.title | downcase }}</a>
+  {% else %}
+    <a class="back mono" href="{{ '/websec/' | relative_url }}">← web sec</a>
+  {% endif %}
 
   <header class="entry-head">
     <div class="entry-meta mono">
-      <span class="ref">{{ page.ref | default: 'TL' }}</span>
-      {% if page.language %}<span class="dot">·</span><span class="lang">{{ page.language }}</span>{% endif %}
-      {% if page.status %}<span class="status status--{{ page.status | slugify }}">{{ page.status }}</span>{% endif %}
+      <span class="ref">{{ page.category | default: 'Web Sec' }}</span>
+      {% if page.date %}<span class="dot">·</span><time datetime="{{ page.date | date_to_xmlschema }}">{{ page.date | date: '%d %b %Y' }}</time>{% endif %}
+      {% if page.level %}<span class="status status--{{ page.level | slugify }}">{{ page.level }}</span>{% endif %}
     </div>
     <h1 class="entry-title">{{ page.title }}</h1>
     {% if page.summary %}<p class="entry-summary">{{ page.summary }}</p>{% endif %}
     {% if page.tags %}
       <ul class="tags mono">{% for tag in page.tags %}<li>{{ tag }}</li>{% endfor %}</ul>
-    {% endif %}
-    {% if page.repo %}
-      <a class="btn" href="{{ page.repo }}">View source on GitHub ↗</a>
     {% endif %}
   </header>
 

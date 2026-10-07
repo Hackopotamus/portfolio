@@ -4,6 +4,7 @@ date: 2026-08-05
 ref: WU-004
 summary: "Rooting the retired HTB 'Popcorn' machine — enumerating a torrent hosting web application, bypassing file upload filters to deploy a PHP webshell, gaining initial access as www-data, and escalating to root via two local privilege escalation paths: the PAM MOTD vulnerability and the Dirty Cow kernel exploit."
 tags: [hack-the-box, web, php, file-upload, filter-bypass, apache, linux, privilege-escalation, cve-2010-0832, cve-2016-5195, motd, dirtycow]
+permalink: /writeups/2026-08-05-htb-popcorn/
 ---
 
 # Popcorn — Hack The Box Write-up
@@ -180,7 +181,7 @@ Finished
 
 
 Using Firefox, we load the URL `http://popcorn.htb/test` and see that it contains a PHP information page. This contains a large amount of useful information that not only provides details about the PHP version and file structure, but also specifies whether URL includes and file uploads are possible. In this case, we can see that file uploads are enabled, and we can save this as a valuable finding.
-![Directory PHPInfo]({{ '/assets/img/htb-popcorn/Popcorn_Directory_PHPInfo.png' | relative_url }})
+![Directory PHPInfo]({{ '/assets/img/writeups/htb-popcorn/Popcorn_Directory_PHPInfo.png' | relative_url }})
 
 **Green — Very Possible Attack Vectors**
 * `disable_functions = no value` — no PHP functions are blocked, meaning `system()`, `exec()`, `shell_exec()` and friends are all fully available. if we get a file uploaded and executing, the webshell will work without restriction.
@@ -199,7 +200,7 @@ Scrolling further down the `phpinfo` output reveals the "mime_magic" section, wh
 With it disabled, PHP would have reduced ability to perform server-side content inspection on uploads.
 
 At this stage, we have not confirmed any upload functionality. However, this suggests that if an upload feature exists, the server may rely more heavily on client-supplied information, such as the `Content-Type` header, rather than validating the file contents itself. This is a condition that can sometimes be bypassed by intercepting and modifying requests, for example using Burp Suite.
-![Directory MimeMagic]({{ '/assets/img/htb-popcorn/Popcorn_Directory_MimeMagic.png' | relative_url }})
+![Directory MimeMagic]({{ '/assets/img/writeups/htb-popcorn/Popcorn_Directory_MimeMagic.png' | relative_url }})
 
 We do attempt to enumerate `/rename` and discover that it appears to be some kind of API for renaming files on the machine. However, at this point we are not aware of any files that could be renamed, and it seems like a poor use of time to fuzz this functionality.
 
@@ -235,10 +236,10 @@ We start by checking the page's source and attempt to fingerprint the applicatio
 Checking the upload function, we can see that it appears to be locked behind a login page. In this case, we will need to create an account. We click Sign Up and register using fictitious details.
 
 The registration is successful and confirms that the account has been created. We then navigate back to the upload page, where we are prompted to log in. Using the credentials we just created, we successfully authenticate.
-![Torrent LogIn]({{ '/assets/img/htb-popcorn/Popcorn_Torrent_LogIn.png' | relative_url }})
+![Torrent LogIn]({{ '/assets/img/writeups/htb-popcorn/Popcorn_Torrent_LogIn.png' | relative_url }})
 
 Something of interest is that we can see a Kali Linux torrent file that has previously been uploaded. This is likely some kind of hint from the author, and they may be suggesting that our Kali Linux distribution contains a resource that could help us.
-![Torrent OtherUpload]({{ '/assets/img/htb-popcorn/Popcorn_Torrent_OtherUpload.png' | relative_url }})
+![Torrent OtherUpload]({{ '/assets/img/writeups/htb-popcorn/Popcorn_Torrent_OtherUpload.png' | relative_url }})
 
 
 Using `searchsploit`, we perform a quick search for `torrent hoster`. This returns only one result, which is worth exploring. We can view the exploit information using the `-x` flag and decide whether it is useful.
@@ -304,18 +305,18 @@ im indoushka's sister
 
 
 The exploit details certainly seem to follow the URL pathing, and we can visit `https://www.exploit-db.com/exploits/11746` to review the exploit. We can see that it was disclosed on 2010-03-15, meaning it is very likely applicable to our version.
-![Torrent 2010]({{ '/assets/img/htb-popcorn/Popcorn_Torrent_2010.png' | relative_url }})
+![Torrent 2010]({{ '/assets/img/writeups/htb-popcorn/Popcorn_Torrent_2010.png' | relative_url }})
 
 We attempt to follow the exploit and navigate to `http://popcorn.htb/torrent/torrents.php?mode=upload` in order to test uploading a file. At this point, we try a few different file types but fail to upload anything, leaving us to experiment for a while.
 
 We then circle back to enumeration and remember the clue from earlier: the author uploaded a Kali Linux torrent file to the machine, so perhaps we should investigate that first.
 
 This proves to be fruitful, as we find another possible hint from the author. The file's image appears to contain some kind of clue related to escalation. We also know that if the creator was able to upload this file, we should be able to perform a similar action.
-![Torrent AdminUpload]({{ '/assets/img/htb-popcorn/Popcorn_Torrent_AdminUpload.png' | relative_url }})
+![Torrent AdminUpload]({{ '/assets/img/writeups/htb-popcorn/Popcorn_Torrent_AdminUpload.png' | relative_url }})
 
 
 We download a latest copy of the [Kali Torrent](https://cdimage.kali.org/kali-2026.2/kali-linux-2026.2-installer-amd64.iso.torrent) file and attempt to upload the torrent seed file to the application. This proves to be successful, and we now have a file placed on the machine. The next step is to locate where the file was placed.
-![Torrent NewUpload]({{ '/assets/img/htb-popcorn/Popcorn_Torrent_NewUpload.png' | relative_url }})
+![Torrent NewUpload]({{ '/assets/img/writeups/htb-popcorn/Popcorn_Torrent_NewUpload.png' | relative_url }})
 
 
 Editing our previous Gobuster scan by changing the URL to one directory higher within the `/torrent` folder gives us plenty to investigate. We can now spend some time attempting to understand the application's structure. The obvious result that immediately stands out is the `/upload` folder.
@@ -374,7 +375,7 @@ After spending some time enumerating the results, we check the `/upload` folder 
 2. The files appear to be renamed to a random string, possibly based on the file hash. This may tie into the `/rename` API endpoint we discovered earlier.
 3. The author appears to be hinting that this is related to some form of escalation, and we should attempt to exploit the torrent screenshot functionality rather than the torrent upload itself.
 
-![Torrent Esculate]({{ '/assets/img/htb-popcorn/Popcorn_Torrent_Esculate.png' | relative_url }})
+![Torrent Esculate]({{ '/assets/img/writeups/htb-popcorn/Popcorn_Torrent_Esculate.png' | relative_url }})
 
 
 ---
@@ -384,10 +385,10 @@ After spending some time enumerating the results, we check the `/upload` folder 
 With our enumeration work revealing a possible vulnerability that we can now exploit, we will open Burp Suite and attempt to not only capture traffic and verify uploads, but also tamper with requests in order to gain a shell on the machine.
 
 Let's start simple and update the screenshot of the torrent file we uploaded earlier. We will use a test image called `TestHippo.png` that we found to be most suitable given the situation. We will monitor the requests in Burp Suite passively first and then attempt to upload a shell next.
-![Bypass UploadPNG]({{ '/assets/img/htb-popcorn/Popcorn_Bypass_UploadPNG.png' | relative_url }})
+![Bypass UploadPNG]({{ '/assets/img/writeups/htb-popcorn/Popcorn_Bypass_UploadPNG.png' | relative_url }})
 
 The captured request gives us some useful information that we can use. It shows the file being uploaded, and within the request, it provides the MIME type of the file. When we inspected the PHP configuration earlier, we identified that if filtering was enabled only client-side, we might be able to tamper with the request and trick the application, as no server-side validation appears to be taking place.
-![Bypass RequestPNG]({{ '/assets/img/htb-popcorn/Popcorn_Bypass_RequestPNG.png' | relative_url }})
+![Bypass RequestPNG]({{ '/assets/img/writeups/htb-popcorn/Popcorn_Bypass_RequestPNG.png' | relative_url }})
 
 
 The PUT request successfully updates the torrent screenshot, confirming that the server accepts file uploads. We can now attempt to upload a PHP web shell to the server. Since the web server is running PHP, we can use `locate` combined with `grep` to search Kali's bundled files for an appropriate PHP web shell and copy it into our working directory.
@@ -412,12 +413,12 @@ We attempt to upload the web shell in its original form as our first test, but r
 For the first modification, we simply rename the file to `webshell.png.php` to test whether the application is only validating the file extension. This does not bypass the filtering, indicating that further request manipulation will be required.
 
 Since we already captured a successful `TestHippo.png` upload request, we can use parts of this request as a reference when modifying our web shell upload. We begin by changing the `Content-Type` header to `image/png`, matching the previously accepted upload request. This also answers Task 3 from the "Guided Mode" section. For additional testing, we copy the magic bytes from the valid image upload into the new request.
-![Bypass RequestTamper]({{ '/assets/img/htb-popcorn/Popcorn_Bypass_RequestTamper.png' | relative_url }})
+![Bypass RequestTamper]({{ '/assets/img/writeups/htb-popcorn/Popcorn_Bypass_RequestTamper.png' | relative_url }})
 
 After submitting the tampered request through Burp, we receive an HTTP 200 "OK" response, indicating that the upload was accepted by the application. We can now navigate to `http://popcorn.htb/torrent/upload/83f92aecfa3d92d3df79a5661ad8efb57282b48b.php` to access the uploaded web shell on the server.
 
 We can also confirm that the application has renamed the uploaded file. The new filename appears to be a unique SHA1 hash generated from the upload transaction rather than being based on the original file name or extension.
- ![Bypass Hash]({{ '/assets/img/htb-popcorn/Popcorn_Bypass_Hash.png' | relative_url }})
+ ![Bypass Hash]({{ '/assets/img/writeups/htb-popcorn/Popcorn_Bypass_Hash.png' | relative_url }})
 
 ---
 

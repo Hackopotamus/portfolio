@@ -1,0 +1,18 @@
+{% assign ws = include.item %}
+<a class="card card--websec" href="{{ ws.url | relative_url }}">
+  <div class="card-meta mono">
+    <span class="ref">{{ ws.category | default: 'Web Sec' }}</span>
+    {% if ws.kind == "module" %}
+      {% assign lab_count = site.websec | where: "kind", "lab" | where: "module", ws.module | size %}
+      <span class="dot">·</span><span>{{ lab_count }} lab{% if lab_count != 1 %}s{% endif %}</span>
+    {% endif %}
+    {% if ws.level %}<span class="status status--{{ ws.level | slugify }}">{{ ws.level }}</span>{% endif %}
+  </div>
+  <h3 class="card-title">{{ ws.title }}</h3>
+  {% if ws.summary %}<p class="card-summary">{{ ws.summary }}</p>{% endif %}
+  {% if ws.tags %}
+    <ul class="tags mono">
+      {% for tag in ws.tags %}<li>{{ tag }}</li>{% endfor %}
+    </ul>
+  {% endif %}
+</a>

@@ -4,12 +4,13 @@ date: 2026-09-29
 ref: WU-008
 summary: "Rooting the retired HTB Tenten machine — exploiting a file disclosure vulnerability in the WordPress Job Manager plugin to discover a job application image containing an SSH private key hidden using steganography, cracking the key's passphrase, and escalating to root through a misconfigured sudo permission on a custom Bash script."
 tags: [hack-the-box, wordpress, wpscan, job-manager, cve-2015-6668, file-disclosure, steganography, ssh, linux, privilege-escalation, sudo-abuse]
+permalink: /writeups/2026-09-29-htb-tenten/
 ---
 
 <h1 align="center">Tenten — Hack The Box Write-up</h1>
 
 <p align="center">
-  <img src="{{ '/assets/img/htb-tenten/Tenten_Logo.png' | relative_url }}" width="300"/>
+  <img src="{{ '/assets/img/writeups/htb-tenten/Tenten_Logo.png' | relative_url }}" width="300"/>
 </p>
 
 **Description:** Tenten is a medium difficulty machine that requires some outside-the-box/CTF-style thinking to complete. It demonstrates the severity of using outdated WordPress plugins, which is a major attack vector that exists in real life.
@@ -112,13 +113,13 @@ ff02::2         ip6-allrouters
 With the hostname now correctly mapped, we can refresh the page and see the site being hosted on port 80. From the content presented, we can see that it's some kind of job portal, while the page itself describes the site as **"Just another WordPress site"**.
 
 This gives us a strong indication that WordPress is being used, which we can confirm along with the version using the Wappalyzer add-on. Wappalyzer identifies the CMS as WordPress and shows that it's running version `4.7.3`, giving us the answer to 'Guided Mode' task two's question.
-![HTTP WordPress]({{ '/assets/img/htb-tenten/Tenten_HTTP_WordPress.png' | relative_url }})
+![HTTP WordPress]({{ '/assets/img/writeups/htb-tenten/Tenten_HTTP_WordPress.png' | relative_url }})
 
 
 We can take a little time to look around the site, and in doing so we gather two useful pieces of information. The first is an indication of when the machine was created. Based on a post made by a user, we can see that the last interaction took place on **April 12, 2017 at 8:37 AM**.
 
 The second piece of information is a username, takis, who appears to have created the posts. We can make a note of this as a potential active user on the machine and keep it in mind for later if we need it. This gives us the answer to 'Guided Mode' task three's question. 
-![HTTP UserDate]({{ '/assets/img/htb-tenten/Tenten_HTTP_UserDate.png' | relative_url }})
+![HTTP UserDate]({{ '/assets/img/writeups/htb-tenten/Tenten_HTTP_UserDate.png' | relative_url }})
 
 At this point, we can start looking for any potential vulnerabilities that may be present on the machine. We'll fire up Burp Suite and capture requests as we explore the website, giving us an opportunity to inspect how the application handles our interactions.
 
@@ -203,7 +204,7 @@ We later discover a job application for a penetration tester, which contains sev
 
 The machine's connection also seems to be a little flaky at times, and some of our testing leaves quite a mess in the comment section. As a precaution, we decide to reset the machine and continue from a clean state.
 
-![HTTP CommentModeration]({{ '/assets/img/htb-tenten/Tenten_HTTP_CommentModeration.png' | relative_url }})
+![HTTP CommentModeration]({{ '/assets/img/writeups/htb-tenten/Tenten_HTTP_CommentModeration.png' | relative_url }})
 
 ### File Upload Vulnerabilities
 
@@ -211,7 +212,7 @@ The only useful finding we've uncovered so far is a file upload function that we
 
 The first thing we need to establish is whether the upload function applies any filtering to the files we submit. We start by attempting to upload a basic web shell called `shell.php`, but the upload is denied. This tells us that the upload function is applying some form of allow/deny list to control which file types can be uploaded.
 
-![HTTP FailedUpload]({{ '/assets/img/htb-tenten/Tenten_HTTP_FailedUpload.png' | relative_url }})
+![HTTP FailedUpload]({{ '/assets/img/writeups/htb-tenten/Tenten_HTTP_FailedUpload.png' | relative_url }})
 
 From here, we can start building a list of file types that are either allowed or disallowed. Understanding how the filter behaves may allow us to identify a way to bypass it if we're able to find a file type that isn't being handled as expected.
 
@@ -233,7 +234,7 @@ We upload a few different common file types and record the results in the table 
 Based on the results above, it would seem that the web application is using some form of allow listing. We can test a few basic filename and extension manipulation techniques, but these don't allow us to upload a PHP file. This helps to support our theory that the application is checking the file extension.
 
 However, when we start experimenting with file type obfuscation and modifying the content type of our requests in Burp Suite, we eventually manage to successfully place files on the machine.
-![HTTP UploadBypass]({{ '/assets/img/htb-tenten/Tenten_HTTP_UploadBypass.png' | relative_url }})
+![HTTP UploadBypass]({{ '/assets/img/writeups/htb-tenten/Tenten_HTTP_UploadBypass.png' | relative_url }})
 
 We can now refer back to our earlier `gobuster` scan to see if we found any common upload paths. Unfortunately, we don't find anything useful in this instance, meaning we'll have to keep our successful file upload in our pocket for now.
 
@@ -371,7 +372,7 @@ With this in mind, we can formulate a theory around how the IDOR vulnerability m
 http://tenten.htb/index.php/jobs/apply/8/ <-- IDOR?
 ```
 Perhaps the number at the end of the URL is being used as an identifier. If that's the case, we might be able to manipulate it and see whether we can access something we shouldn't.
-![CVE 2015 6668 IDOR]({{ '/assets/img/htb-tenten/Tenten_CVE-2015-6668_IDOR.png' | relative_url }})
+![CVE 2015 6668 IDOR]({{ '/assets/img/writeups/htb-tenten/Tenten_CVE-2015-6668_IDOR.png' | relative_url }})
 
 The results above confirm that the IDOR vulnerability exists and appear to show us walking through the application's WordPress post ID space. From the results we're seeing what looks to be the title of each application being reflected, so we should try working through some more of these IDs to see if we can find anything useful.
 
@@ -544,7 +545,7 @@ Enter a file name: HackerAccessGranted
 
 Inspecting the file at its location on the web server shows us an unusual image stating that access is granted. This seems like a very CTF-like file to have placed on the machine, and we now have a strong indication that this is the intended file we're supposed to find.
 
-![CVE 2015 6668 HackerAccessGranted]({{ '/assets/img/htb-tenten/Tenten_CVE-2015-6668_HackerAccessGranted.png' | relative_url }})
+![CVE 2015 6668 HackerAccessGranted]({{ '/assets/img/writeups/htb-tenten/Tenten_CVE-2015-6668_HackerAccessGranted.png' | relative_url }})
 
 In the next section, we can take a closer look at the file and see if we can find anything useful that might help us progress.
 
@@ -862,7 +863,7 @@ root@tenten:/var/www/html/wp-content/uploads/2026/09# cat shell.php_.jpg
 ```
 
 When navigating to `http://tenten.htb/wp-content/uploads/2026/09/shell.php_.jpg`, we can see that the file doesn't work as a web shell. This looks like an intentional countermeasure, and as we mentioned earlier, it's likely designed to keep the progression of the box on its intended path. Given how CTF-like this machine has been throughout, it wouldn't be surprising if this was deliberately included to steer us away from this alternative route.
-![BeyondRoot NoWebShell]({{ '/assets/img/htb-tenten/Tenten_BeyondRoot_NoWebShell.png' | relative_url }})
+![BeyondRoot NoWebShell]({{ '/assets/img/writeups/htb-tenten/Tenten_BeyondRoot_NoWebShell.png' | relative_url }})
 
 > **What actually happened**
 >
@@ -998,7 +999,7 @@ mysql> show tables;
 Selecting the columns shown below from the `wp_posts` table allows us to see exactly what is stored in each entry and how it relates back to the vulnerabilities we used earlier. The `ID` and `post_title` columns correspond to the values we were able to cycle through using the IDOR vulnerability, which is how we eventually discovered `HackerAccessGranted.jpg`.
 
 The `guid` field is particularly interesting, as it contains the stored URL for each entry. This gives us another view of the file locations we were able to brute-force earlier using the CVE-2015-6668 exploit, helping to connect what we discovered externally with what is actually stored in the WordPress database.
-![BeyondRoot WPPosts]({{ '/assets/img/htb-tenten/Tenten_BeyondRoot_WPPosts.png' | relative_url }})
+![BeyondRoot WPPosts]({{ '/assets/img/writeups/htb-tenten/Tenten_BeyondRoot_WPPosts.png' | relative_url }})
 
 We can select some of the entries from the table, but we can see that they aren't populated with any useful data. After looking through the remaining entries, we're unable to find anything else of particular interest, so this brings our investigation to an end and concludes the **Beyond Root** section.
 ```SQL
