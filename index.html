@@ -25,14 +25,14 @@ layout: default
   </div>
 </section>
 
-{% assign recent_tools = site.tools | sort: 'date' | reverse %}
+{% assign recent_websec = site.websec | sort: 'date' | reverse %}
 <section class="section wrap">
   <div class="section-head">
-    <h2 class="section-title"><span class="mono num">//</span> Tools</h2>
-    <a class="section-link mono" href="{{ '/tools/' | relative_url }}">all tools →</a>
+    <h2 class="section-title"><span class="mono num">//</span> Web Sec</h2>
+    <a class="section-link mono" href="{{ '/websec/' | relative_url }}">all websec →</a>
   </div>
   <div class="grid">
-    {% for item in recent_tools limit: 4 %}
+    {% for item in recent_websec limit: 4 %}
       {% include card-tool.html item=item %}
     {% endfor %}
   </div>
